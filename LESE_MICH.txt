@@ -1,0 +1,14 @@
+UNSER FAMILIENPLANER – NETLIFY/PWA V1
+
+Enthalten:
+- Aktuellste getestete HTML-Oberfläche einschließlich roter Kalendernotizen
+- Web-App-Manifest
+- App-Symbole (192 px und 512 px)
+- Service Worker für App-Shell-/Offline-Caching
+
+WICHTIG:
+- Dies ist eine PWA-Vorbereitung, keine fertige Mehrgeräte-App.
+- Daten bleiben weiterhin lokal im jeweiligen Browser.
+- Es gibt noch keine Familienkonten, Cloud-Synchronisierung oder geschützte Gesundheitsdaten.
+- Vor Verkauf sind Backend, Zugriffsrechte, Datenschutz, Backup und vollständige Tests nötig.
+- Auf Netlify als HTTPS-Site bereitstellen; für Updates muss die Service-Worker-Version bei Änderungen erhöht werden.
