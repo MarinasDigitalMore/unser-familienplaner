@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="theme-color" content="#f6efe3" id="metaTheme">
+<title>Unser Familienplaner – Testversion</title>
+
+<!-- Gesundheitsprofil / Allergien -->
+<div class="modal-backdrop" id="healthModal">
+ <div class="modal health-modal">
+  <div class="modal-head"><h2 id="healthTitle">Gesundheitsprofil</h2><button class="icon-btn" type="button" data-close="healthModal" aria-label="Schließen">×</button></div>
+  <div class="health-apotheke"><strong>🏥 Für die Apotheke</strong><div id="healthApothekeText">Hier stehen die freigegebenen Angaben zu Allergien.</div></div>
+  <div id="healthStatusBox" class="health-status unknown">⚪ Noch nicht angegeben</div>
+  <label for="healthStatus">Allergie-Status</label>
+  <select id="healthStatus" class="field">
+   <option value="unknown">Noch nicht angegeben</option>
+   <option value="none">Keine bekannten Allergien (bestätigt)</option>
+   <option value="has">Allergien vorhanden</option>
+  </select>
+  <h3 style="margin:16px 0 8px">Bekannte Allergien / Unverträglichkeiten</h3>
+  <div id="healthEntries"></div>
+  <div class="health-grid">
+   <div><label for="healthAllergen">Allergie / Auslöser</label><input id="healthAllergen" class="field" placeholder="z. B. Penicillin"></div>
+   <div><label for="healthSpecific">Genaue Bezeichnung (optional)</label><input id="healthSpecific" class="field" placeholder="z. B. Wirkstoff oder Präparat"></div>
+   <div><label for="healthReaction">Bekannte Reaktion (optional)</label><input id="healthReaction" class="field" placeholder="z. B. Hautausschlag"></div>
+   <div><label for="healthSince">Bekannt seit (optional)</label><input id="healthSince" class="field" placeholder="z. B. 2018"></div>
+  </div>
+  <div class="health-actions">
+   <button class="btn" type="button" data-close="healthModal">Schließen</button>
+   <button class="btn primary" type="button" id="healthAdd">＋ Allergie hinzufügen</button>
+   <button class="btn primary" type="button" id="healthSave">Angaben speichern</button>
+  </div>
+  <p class="sub" style="margin-top:12px">Hinweis: Diese Testversion speichert Gesundheitsangaben nur lokal in diesem Browser. Sie sind noch nicht verschlüsselt und werden nicht mit anderen Geräten geteilt. Bei „Keine bekannten Allergien“ handelt es sich um eine selbst bestätigte Angabe, nicht um eine medizinische Prüfung.</p>
+ </div>
+</div>
+
+<script>
+/* Farbwelt sofort setzen, damit beim Öffnen nichts flackert */
+try{var __t=localStorage.getItem('fptest_theme');if(__t==='warm'||__t==='colorful'||__t==='fresh'||__t==='sport'){document.documentElement.setAttribute('data-theme',__t)}}catch(e){}
+</script>
+<style>
+/* ============ FARBWELTEN ============
+   Alle Farben der Oberfläche kommen aus diesen Variablen.
+   Die Farben der Familienmitglieder (Punkte, Balken, Avatare) stehen NICHT hier,
+   sie bleiben immer so, wie Du sie für die Person gewählt hast. */
+:root,[data-theme="warm"]{
+ /* Warm & natürlich: Creme, Beige, Altrosa, Sand, Salbeigrün */
+ --bg:#f6efe3;--bg2:#f6efe3;--paper:#fffaf1;--card:#fffdf8;--ink:#3f3730;--muted:#6f6359;--line:#e3d4bd;
+ --accent:#a35a6a;--accent-ink:#ffffff;--accent-soft:#f3e1e0;--soft-ink:#7a3f4f;
+ --chip:#efe4d0;--badge-bg:#e3ebdc;--badge-ink:#3f5a45;--hero:#f0dcd9;--note:#f1e6d0;--note-ink:#5f5247;
+ --done:#b7cdb8;--done-ink:#2f4a37;
+ --st-taken-bg:#d5e6d6;--st-taken-ink:#2b4a33;--st-skip-bg:#f1d9d6;--st-skip-ink:#7a3a3a;--st-open-bg:#f2e6c6;--st-open-ink:#6a5316;
+ --bday-bg:#f6dfdc;--bday-ink:#6f3342;--due-bg:#f2e6c6;--due-ink:#5f4a12;
+ --cat-mix:16%;--shadow:0 12px 35px rgba(90,64,40,.09);--radius:20px;--head-font:Georgia,serif;--overlay:#2b211f77;
+}
+[data-theme="colorful"]{
+ /* Fröhlich & bunt: fröhliche Pastellfarben, helle Hintergründe, bunte Akzente */
+ --bg:#fdf3fb;--bg2:#eef7ff;--paper:#ffffff;--card:#ffffff;--ink:#2e2a45;--muted:#625c7e;--line:#e8d9f3;
+ --accent:#7a55d3;--accent-ink:#ffffff;--accent-soft:#ebe2ff;--soft-ink:#4a2fa0;
+ --chip:#fff0c2;--badge-bg:#d3f2e6;--badge-ink:#1b5f4c;--hero:#ffd6e5;--note:#ffe9c7;--note-ink:#5b4520;
+ --done:#bfeccf;--done-ink:#1c5a35;
+ --st-taken-bg:#c9f0d9;--st-taken-ink:#17532f;--st-skip-bg:#ffd9e2;--st-skip-ink:#8a2447;--st-open-bg:#ffefb8;--st-open-ink:#6b4f00;
+ --bday-bg:#ffd9ec;--bday-ink:#7d1f55;--due-bg:#ffefb8;--due-ink:#5d4400;
+ --cat-mix:34%;--shadow:0 14px 36px rgba(122,85,211,.13);--radius:26px;--head-font:"Trebuchet MS","Segoe UI",system-ui,sans-serif;--overlay:#3a2a5d77;
+}
+[data-theme="fresh"]{
+ /* Frisch & ruhig: sanftes Blau, Mint, helles Lavendel, dezente Kontraste */
+ --bg:#edf4fa;--bg2:#edf4fa;--paper:#fafcff;--card:#ffffff;--ink:#24364a;--muted:#4a6275;--line:#d3e1ed;
+ --accent:#3d6c9c;--accent-ink:#ffffff;--accent-soft:#dfeefa;--soft-ink:#2a5380;
+ --chip:#e6e1f6;--badge-bg:#d6f1e8;--badge-ink:#1d5a4c;--hero:#dcd6f2;--note:#e4f2ec;--note-ink:#3a5a52;
+ --done:#cdeee0;--done-ink:#21594a;
+ --st-taken-bg:#d2f0e3;--st-taken-ink:#1d5646;--st-skip-bg:#e6e1f6;--st-skip-ink:#483a8a;--st-open-bg:#dcecf9;--st-open-ink:#27506f;
+ --bday-bg:#e6e1f6;--bday-ink:#40338a;--due-bg:#dcecf9;--due-ink:#21476b;
+ --cat-mix:18%;--shadow:0 10px 30px rgba(50,90,130,.10);--radius:16px;--head-font:system-ui,-apple-system,"Segoe UI",sans-serif;--overlay:#1f33482e;
+}
+
+.event-note-alert{display:inline-block;margin-top:6px;padding:5px 9px;border:1px solid #e59a9a;border-left:4px solid #c62828;border-radius:8px;background:#fff0f0;color:#a51f1f;font-weight:800;font-size:12px;line-height:1.4;white-space:pre-wrap;max-width:100%}
+[data-theme="sport"]{
+ /* Sportlich & modern: mittleres Schieferblau, Graphit, Stahlgrau und Petrol */
+ --bg:#263542;--bg2:#314454;--paper:#354958;--card:#405565;--ink:#f7fafc;--muted:#d0dbe3;--line:#607686;
+ --accent:#35c2b8;--accent-ink:#102a2b;--accent-soft:#315f65;--soft-ink:#b7f2ec;
+ --chip:#4a6272;--badge-bg:#315e59;--badge-ink:#c5f5e9;--hero:#405d6c;--note:#4b5962;--note-ink:#ffe0a0;
+ --done:#376b5e;--done-ink:#dcfff0;
+ --st-taken-bg:#326b59;--st-taken-ink:#e0fff0;--st-skip-bg:#784c55;--st-skip-ink:#ffe0e3;--st-open-bg:#75613b;--st-open-ink:#fff0c4;
+ --bday-bg:#654e70;--bday-ink:#f8e6ff;--due-bg:#45627d;--due-ink:#e0f1ff;
+ --cat-mix:20%;--shadow:0 12px 32px rgba(10,20,30,.18);--radius:14px;--head-font:system-ui,-apple-system,"Segoe UI",sans-serif;--overlay:#15233099;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);background:linear-gradient(180deg,var(--bg),var(--bg2));background-attachment:fixed;color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+button,input,select,textarea{font:inherit}button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.app{max-width:1200px;margin:auto;padding:22px}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:20px}
+.brand{display:flex;gap:12px;align-items:center;background:none;border:0;padding:0;color:inherit;text-align:left}.brand-mark{width:48px;height:48px;border-radius:16px;background:var(--hero);display:grid;place-items:center;font-size:25px}
+h1{font-family:var(--head-font);font-size:clamp(25px,4vw,35px);font-weight:500;margin:0}.sub{color:var(--muted);font-size:13px}
+.test-badge{display:inline-block;vertical-align:middle;margin-left:8px;font:700 10px/1 system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;padding:4px 7px;border-radius:20px;background:var(--st-open-bg);color:var(--st-open-ink)}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:10px 14px;border-radius:13px;font-weight:650}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.btn.soft{background:var(--accent-soft);border-color:var(--accent-soft);color:var(--soft-ink)}
+.btn.active{background:var(--accent-soft);border-color:var(--accent);color:var(--soft-ink)}
+.btn.danger{color:var(--st-skip-ink);background:var(--st-skip-bg);border-color:var(--st-skip-bg)}
+.layout{display:grid;grid-template-columns:285px 1fr;gap:18px;align-items:start}
+.panel,.main-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.panel{padding:18px}.main-card{padding:20px;min-height:620px}
+.panel h2,.section-title{font-size:16px;margin:0 0 13px}
+.member-list{display:grid;gap:9px}.member{display:flex;align-items:center;gap:10px;padding:9px;border-radius:14px;background:var(--chip)}
+.avatar{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:18px;flex:none}
+.member small{display:block;color:var(--muted)}.member .dot{width:9px;height:9px;border-radius:50%;margin-left:auto}
+.side-section{margin-top:22px}.category-list{display:grid;gap:8px}.cat{display:flex;align-items:center;gap:9px;color:var(--ink);font-size:14px}
+.cat-icon{width:27px;height:27px;border-radius:9px;background:var(--chip);background:color-mix(in srgb,var(--cc,#999) var(--cat-mix),var(--card));display:grid;place-items:center}
+.hint{font-size:12px;color:var(--muted);margin-top:12px}
+.side-bday{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:6px 0;border-bottom:1px dashed var(--line)}.side-bday:last-child{border:0}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.date-heading{display:flex;align-items:center;gap:12px}.date-heading h2{font-family:var(--head-font);font-size:27px;font-weight:500;margin:0}.date-heading p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.nav{display:flex;gap:6px}.icon-btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:11px;width:38px;height:38px;font-size:18px}
+#today{width:auto;padding:0 12px;font-size:14px;font-weight:650}
+.view-tabs{display:flex;gap:5px;background:var(--chip);padding:4px;border-radius:12px}
+.view-tabs button{border:0;background:transparent;padding:8px 11px;border-radius:9px;color:var(--muted);font-size:13px}
+.view-tabs button.active{background:var(--card);color:var(--accent);font-weight:700;box-shadow:0 2px 7px #0000001a}
+.day-list{display:grid;gap:10px}.event{display:grid;grid-template-columns:68px 10px 1fr auto;gap:12px;align-items:center;padding:13px;border:1px solid var(--line);border-radius:15px;background:var(--card)}
+.event-time{font-weight:700;font-size:14px}.event-bar{height:42px;width:5px;border-radius:5px}.event-title{font-weight:700}.event-meta{font-size:12px;color:var(--muted);margin-top:3px}.event-icon{font-size:20px}
+.badge{font-size:11px;padding:4px 8px;border-radius:20px;background:var(--badge-bg);color:var(--badge-ink);white-space:nowrap}
+.empty{padding:42px 15px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:16px}
+.empty strong{display:block;color:var(--ink);font-size:17px;margin:8px}
+.month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.weekday{text-align:center;color:var(--muted);font-size:11px;padding:7px 0}
+.day-cell{min-height:84px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:7px;text-align:left;color:var(--ink)}
+.day-cell.today{border:2px solid var(--accent)}.day-cell.selected{background:var(--accent-soft)}.day-cell.muted{opacity:.45}
+.day-num{font-size:12px;font-weight:700}.mini-dots{display:flex;gap:3px;flex-wrap:wrap;margin-top:8px;align-items:center}.mini-dot{width:7px;height:7px;border-radius:50%}.mini-ico{font-size:11px;line-height:1}.shopping-pin{display:inline-flex;align-items:center;gap:6px;border:1px solid #c9a56a;background:#fff8e8;color:#59452a;border-radius:9px;padding:5px 8px;font-size:12px;font-weight:700;box-shadow:0 2px 4px #00000012;cursor:pointer}.shopping-pin .pin{font-size:17px;line-height:1}.shopping-pin.month-pin{padding:1px 3px;border:0;background:transparent;box-shadow:none;font-size:11px}.shopping-pin.week-pin{display:flex;width:100%;margin-top:6px;justify-content:flex-start;white-space:normal;text-align:left}.shopping-pin-list{display:grid;gap:8px;margin-top:12px}.shopping-pin-list label{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card)}.shopping-pin-list input{width:16px;flex:0 0 16px}.shopping-pin-list span{overflow-wrap:anywhere}.pin-modal-title{display:flex;align-items:center;gap:8px}.pin-note-alert{margin:12px 0;padding:12px 14px;border:1px solid #e59a9a;border-left:5px solid #c62828;border-radius:10px;background:#fff0f0;color:#a51f1f;font-weight:700;line-height:1.45;white-space:normal}.pin-note-alert .pin-note-label{display:block;margin-bottom:4px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#b42323}
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.week-col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;min-height:150px}
+.week-col h4{margin:0 0 8px;font-size:12px;color:var(--muted)}.week-event{font-size:11px;padding:6px;border-radius:8px;margin:5px 0;overflow-wrap:anywhere}
+.week-event.bday{background:var(--bday-bg);color:var(--bday-ink)}.week-event.med{background:var(--st-open-bg);color:var(--st-open-ink)}
+.year-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.year-month{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--card);color:var(--ink);text-align:left}.year-month strong{display:block;margin-bottom:6px}.year-month span{font-size:12px;color:var(--muted);display:block}
+.task-list{display:grid;gap:12px}.task-card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px}.task-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.task-title{font-weight:750}.task-meta{font-size:12px;color:var(--muted);margin-top:4px}.task-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.task-actions button{font-size:12px;padding:7px 10px}.task-shopping{margin:12px 0;padding:12px 14px;background:var(--soft,rgba(220,230,240,.35));border:1px solid var(--line);border-radius:12px}.task-shopping .task-sub{margin-top:8px}
+.task-sub{margin:9px 0 0;padding-left:20px;font-size:13px}.task-sub li{margin:4px 0}.task-sub label{display:flex;justify-content:flex-start;gap:9px;align-items:center;width:100%;min-width:0}.task-sub input[type="checkbox"]{width:16px;min-width:16px;flex:0 0 16px;margin:0}.task-sub label span{flex:1;min-width:0;overflow-wrap:anywhere}.task-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}.task-empty{padding:30px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:15px}.footer-note{margin-top:18px;padding:12px 14px;background:var(--note);border-radius:13px;color:var(--note-ink);font-size:12px}
+.modal-backdrop{position:fixed;inset:0;background:var(--overlay);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal-backdrop.show{display:flex}.modal{width:min(580px,100%);max-height:92vh;overflow:auto;background:var(--paper);color:var(--ink);border-radius:22px;padding:22px;box-shadow:0 20px 60px #0003}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}.modal h2{font-family:var(--head-font);font-weight:500;margin:0;font-size:25px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:grid;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:12px;color:var(--muted);font-weight:650}
+input,select,textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:11px;padding:10px;color:var(--ink);min-width:0}
+textarea{min-height:75px;resize:vertical}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
+.checkline{display:flex;align-items:center;gap:8px;font-size:13px}.checkline input{width:auto}
+.settings-grid{display:grid;gap:14px}.swatches{display:flex;gap:8px;flex-wrap:wrap}.swatch{width:31px;height:31px;border-radius:50%;border:3px solid var(--card);box-shadow:0 0 0 1px var(--line)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:11px 16px;border-radius:12px;display:none;z-index:20;font-size:13px;max-width:92vw}
+/* Geburtstage */
+.bday-banner{display:flex;align-items:center;gap:10px;padding:13px 15px;margin-bottom:10px;border-radius:15px;background:var(--bday-bg);color:var(--bday-ink);font-weight:700;border:2px solid var(--accent)}
+.bday-banner .big{font-size:26px}.bday-banner small{display:block;font-weight:500;opacity:.9}
+.soon-line{font-size:13px;color:var(--muted);margin:0 0 12px}
+.row{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card);margin-bottom:8px}
+.row .grow{flex:1;min-width:0}.row .big{font-size:24px}
+.pill{font-size:12px;font-weight:700;padding:4px 9px;border-radius:20px;white-space:nowrap}
+.pill.taken{background:var(--st-taken-bg);color:var(--st-taken-ink)}.pill.skipped{background:var(--st-skip-bg);color:var(--st-skip-ink)}.pill.open{background:var(--st-open-bg);color:var(--st-open-ink)}
+.area-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}.area-title h2{font-family:var(--head-font);font-weight:500;font-size:27px;margin:0}
+.box{padding:13px 15px;border-radius:14px;background:var(--note);color:var(--note-ink);font-size:13px;margin-bottom:14px}
+.box.warn{background:var(--st-open-bg);color:var(--st-open-ink);border:1px solid var(--st-open-ink)}
+.box strong{color:inherit}
+h3.sec{font-size:16px;margin:20px 0 10px}
+.seg{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.seg button{padding:6px 9px;font-size:12px;border-radius:10px}
+.due-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--due-bg);color:var(--due-ink);border:1px solid var(--due-ink);padding:10px 14px;border-radius:14px;margin-bottom:14px;font-weight:650}
+.time-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}.time-row input{width:130px}
+.wd{display:flex;gap:6px;flex-wrap:wrap}.wd label{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--ink);font-weight:500;padding:5px 8px;border:1px solid var(--line);border-radius:10px;background:var(--card)}.wd input{width:auto}
+details.status{font-size:13px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--card)}details.status summary{cursor:pointer;font-weight:700}details.status ul{margin:8px 0 0;padding-left:18px}details.status li{margin:3px 0}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.panel{order:2}.main-card{order:1}.main-card{min-height:500px}.app{padding:14px}.year-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){header{align-items:flex-start}.header-actions .lbl{display:none}.header-actions .btn{padding:10px 12px}.header-actions .btn.primary .lbl{display:inline}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.event{grid-template-columns:55px 7px 1fr auto;gap:8px;padding:10px}.event .badge{display:none}.day-cell{min-height:60px;padding:5px}.week-grid{gap:3px}.week-col{padding:4px}.week-event{font-size:9px;padding:4px}.date-heading h2{font-size:23px}.row{flex-wrap:wrap}}
+
+/* Auffällige, gut lesbare Hinweise in Aufgaben */
+.task-note-alert{margin:12px 0;padding:11px 14px;border:1px solid #e59a9a;border-left:5px solid #d62828;border-radius:12px;background:#fff0f0;color:#b42323;font-weight:650;line-height:1.5;white-space:normal}
+.task-note-label{display:block;margin-bottom:4px;color:#b42323;font-size:12px;font-weight:800;letter-spacing:.02em}
+
+
+/* Gesundheitsprofile / Allergieübersicht */
+.health-modal{width:min(680px,96vw);max-height:90vh;overflow:auto}
+.health-status{padding:12px 14px;border-radius:10px;font-weight:800;margin:10px 0}
+.health-status.yes{background:#fff0f0;color:#a51f1f;border:1px solid #e59a9a}
+.health-status.no{background:#eaf7ef;color:#216b3a;border:1px solid #a8d5b5}
+.health-status.unknown{background:#fff7e8;color:#875b13;border:1px solid #e8c98b}
+.health-entry{border:1px solid var(--line,#d7e2ed);border-radius:10px;padding:12px;margin:8px 0;background:var(--card,#fff)}
+.health-entry strong{display:block;margin-bottom:4px}
+.health-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.health-grid label{display:block;font-size:12px;font-weight:700;margin-bottom:5px}
+.health-grid input,.health-grid textarea,.health-grid select{width:100%;box-sizing:border-box}
+.health-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px}
+.health-apotheke{background:#fff7e8;border:1px solid #e8c98b;border-radius:10px;padding:12px;margin:12px 0;color:#654b1b}
+@media(max-width:560px){.health-grid{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+ <button class="brand" id="brandBtn" type="button" aria-label="Zum Kalender"><div class="brand-mark">🏡</div><div><h1>Unser Familienplaner<span class="test-badge">Testversion</span></h1><div class="sub">Ein Kalender. Eine Familie. Alles im Blick.</div></div></button>
+ <div class="header-actions">
+  <button class="btn" id="calBtn" type="button" hidden>📅<span class="lbl"> Kalender</span></button>
+  <button class="btn" id="tasksBtn" type="button" aria-label="Aufgaben">☑️<span class="lbl"> Aufgaben</span></button>
+  <button class="btn" id="bdayBtn" type="button" aria-label="Geburtstage">🎂<span class="lbl"> Geburtstage</span></button>
+  <button class="btn" id="medBtn" type="button" aria-label="Medikamente">💊<span class="lbl"> Medikamente</span></button>
+  <button class="btn" id="settingsBtn" type="button" aria-label="Einstellungen">⚙️<span class="lbl"> Einstellungen</span></button>
+  <button class="btn primary" id="addBtn" type="button">＋<span class="lbl"> Termin</span></button>
+ </div>
+</header>
+<div class="due-bar" id="dueBar" hidden><span id="dueText"></span><button class="btn" type="button" id="dueOpen">Medikamente ansehen</button></div>
+<div class="layout">
+ <aside class="panel">
+  <h2>Unsere Familie <span class="sub" id="memberCount"></span></h2>
+  <div class="member-list" id="members"></div>
+  <button class="btn" style="width:100%;margin-top:10px" id="memberBtn">＋ Person hinzufügen</button>
+  <div class="side-section"><h2>Nächste Geburtstage</h2><div id="sideBdays"></div></div>
+  <div class="side-section"><h2>Terminkategorien</h2><div class="category-list" id="categories"></div></div>
+  <div class="side-section"><h2>Auf einen Blick</h2><div class="sub" id="summary"></div></div>
+  <div class="hint">Deine Familie kann mit bis zu 10 Personen geplant werden.</div>
+ </aside>
+ <main class="main-card">
+  <div id="areaCalendar">
+   <div class="toolbar">
+    <div class="date-heading"><div><h2 id="heading">Heute</h2><p id="subheading"></p></div></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+     <div class="nav"><button class="icon-btn" id="prev" aria-label="Zurück">‹</button><button class="icon-btn" id="today" aria-label="Heute">Heute</button><button class="icon-btn" id="next" aria-label="Weiter">›</button></div>
+     <div class="view-tabs" id="tabs"><button data-view="day" class="active">Tag</button><button data-view="week">Woche</button><button data-view="month">Monat</button><button data-view="year">Jahr</button></div>
+    </div>
+   </div>
+   <div id="calendarContent"></div>
+   <div class="footer-note">💛 Tipp: Trage Termine für alle ein und markiere besonders wichtige Ereignisse. Deine Übersicht bleibt dadurch schön klar.</div>
+  </div>
+  <div id="areaTasks" hidden></div>
+  <div id="areaBirthdays" hidden></div>
+  <div id="areaMeds" hidden></div>
+ </main>
+</div>
+</div>
+
+<!-- Termin -->
+<div class="modal-backdrop" id="eventModal"><div class="modal">
+ <div class="modal-head"><h2 id="eventModalTitle">Neuen Termin eintragen</h2><button class="icon-btn" type="button" data-close="eventModal" aria-label="Schließen">×</button></div>
+ <form id="eventForm"><input type="hidden" id="eventId">
+ <div class="form-grid">
+  <div class="field full"><label for="title">Was steht an? *</label><input id="title" required placeholder="z. B. Fußballtraining"></div>
+  <div class="field"><label for="person">Für wen? *</label><select id="person" required></select></div>
+  <div class="field"><label for="category">Kategorie</label><select id="category"></select></div>
+  <div class="field"><label for="date">Datum *</label><input id="date" type="date" required></div>
+  <div class="field"><label for="start">Beginn</label><input id="start" type="time" value="09:00"></div>
+  <div class="field"><label for="end">Ende</label><input id="end" type="time"></div>
+  <div class="field"><label for="repeat">Wiederholung</label><select id="repeat"><option value="none">Keine</option><option value="weekly">Jede Woche</option><option value="biweekly">Alle 2 Wochen</option><option value="monthly">Jeden Monat</option><option value="yearly">Jedes Jahr</option></select></div>
+  <div class="field full"><label for="place">Ort / Adresse</label><input id="place" placeholder="Wo findet der Termin statt?"></div>
+  <div class="field full"><label for="notes">Notiz</label><textarea id="notes" placeholder="Was muss mitgebracht werden?"></textarea></div>
+  <div class="field full"><label class="checkline"><input type="checkbox" id="important"> ⭐ Diesen Termin als wichtig markieren</label></div>
+  <div class="field full"><label class="checkline"><input type="checkbox" id="private"> 🔒 Als privat markieren</label><span class="hint" style="margin:0">Achtung: In dieser Testversion ist das nur eine Markierung. Ein echter Schutz vor anderen Familienmitgliedern ist erst mit Benutzerkonten möglich.</span></div>
+ </div>
+ <div class="modal-actions"><button type="button" class="btn" data-close="eventModal">Abbrechen</button><button class="btn primary" type="submit">Termin speichern</button></div>
+ </form>
+</div></div>
+
+<!-- Person -->
+<div class="modal-backdrop" id="memberModal"><div class="modal">
+ <div class="modal-head"><h2>Familienmitglied</h2><button class="icon-btn" type="button" data-close="memberModal" aria-label="Schließen">×</button></div>
+ <form id="memberForm"><div class="form-grid">
+  <div class="field"><label for="memberName">Name *</label><input id="memberName" required placeholder="z. B. Leon"></div>
+  <div class="field"><label for="memberRole">Rolle</label><select id="memberRole"><option>Mama</option><option>Papa</option><option>Kind</option><option>Oma / Opa</option><option>Haustier</option><option>Andere</option></select></div>
+  <div class="field"><label for="memberEmoji">Symbol</label><select id="memberEmoji"><option>👩</option><option>👨</option><option>👧</option><option>👦</option><option>👵</option><option>👴</option><option>🐶</option><option>🐱</option><option>🐰</option><option>⭐</option></select></div>
+  <div class="field"><label for="memberColor">Farbe</label><input id="memberColor" type="color" value="#d99aa5"></div>
+ </div><div class="modal-actions"><button type="button" class="btn" data-close="memberModal">Abbrechen</button><button class="btn primary">Hinzufügen</button></div></form>
+</div></div>
+
+<!-- Geburtstag -->
+<div class="modal-backdrop" id="bdayModal"><div class="modal">
+ <div class="modal-head"><h2 id="bdayModalTitle">Geburtstag eintragen</h2><button class="icon-btn" type="button" data-close="bdayModal" aria-label="Schließen">×</button></div>
+ <form id="bdayForm"><input type="hidden" id="bdayId">
+ <div class="form-grid">
+  <div class="field full"><label for="bdayName">Name / Bezeichnung *</label><input id="bdayName" required maxlength="60" placeholder="z. B. Anke"></div>
+  <div class="field full"><label for="bdayKind">Wer ist das?</label><select id="bdayKind"><option value="family">Familie</option><option value="friend">Freund/in</option><option value="acquaintance">Bekannte/r</option><option value="pet">Haustier</option></select></div>
+  <div class="field"><label for="bdayDay">Tag *</label><select id="bdayDay"></select></div>
+  <div class="field"><label for="bdayMonth">Monat *</label><select id="bdayMonth"></select></div>
+  <div class="field full"><label for="bdayYear">Geburtsjahr (freiwillig, für das Alter)</label><input id="bdayYear" type="number" inputmode="numeric" min="1900" max="2100" placeholder="z. B. 1985"></div>
+  <div class="field full"><label for="bdayNotes">Notiz (freiwillig)</label><textarea id="bdayNotes" maxlength="300" placeholder="z. B. Geschenkidee"></textarea></div>
+ </div>
+ <p class="hint">Der Geburtstag wiederholt sich automatisch jedes Jahr.</p>
+ <div class="modal-actions"><button type="button" class="btn danger" id="bdayDelete" hidden>Löschen</button><button type="button" class="btn" data-close="bdayModal">Abbrechen</button><button class="btn primary" type="submit">Speichern</button></div>
+ </form>
+</div></div>
+
+<!-- Medikament -->
+<div class="modal-backdrop" id="medModal"><div class="modal">
+ <div class="modal-head"><h2 id="medModalTitle">Medikament eintragen</h2><button class="icon-btn" type="button" data-close="medModal" aria-label="Schließen">×</button></div>
+ <div class="box warn" style="margin-bottom:12px"><strong>Bitte beachten:</strong> Die App ist kein Arzt. Sie macht keine Vorschläge zu Dosierung oder Einnahmezeiten. Du trägst alles selbst ein, die App erinnert nur an Deine Eingaben.</div>
+ <form id="medForm"><input type="hidden" id="medId">
+ <div class="form-grid">
+  <div class="field"><label for="medPerson">Für wen? *</label><select id="medPerson" required></select></div>
+  <div class="field"><label for="medName">Name des Medikaments / der Anwendung *</label><input id="medName" required maxlength="80"></div>
+  <div class="field"><label for="medForm_">Art</label><select id="medForm_"><option>Tablette</option><option>Tropfen</option><option>Spritze / Injektion</option><option>Sonstiges</option></select></div>
+  <div class="field" id="medFormOtherWrap" hidden><label for="medFormOther">Welche Art?</label><input id="medFormOther" maxlength="60"></div>
+  <div class="field"><label for="medAmount">Menge (Deine Angabe)</label><input id="medAmount" maxlength="30" placeholder="z. B. 1"></div>
+  <div class="field"><label for="medUnit">Einheit (Deine Angabe)</label><input id="medUnit" maxlength="30" placeholder="z. B. Stück, ml, Tropfen"></div>
+  <div class="field full"><label>Uhrzeiten (von Dir festgelegt) *</label><div id="medTimes"></div><button type="button" class="btn" id="medAddTime" style="justify-self:start">＋ Uhrzeit hinzufügen</button></div>
+  <div class="field full"><label for="medIntervalNote">Notiz zum Intervall (freiwillig)</label><input id="medIntervalNote" maxlength="80" placeholder="z. B. alle 8 Stunden"><span class="hint" style="margin:0">Das ist nur Deine Notiz. Die App rechnet daraus nichts aus. Erinnert wird nur zu den Uhrzeiten oben.</span></div>
+  <div class="field"><label for="medRepeat">An welchen Tagen?</label><select id="medRepeat"><option value="daily">Jeden Tag</option><option value="every">Alle … Tage</option><option value="weekdays">Bestimmte Wochentage</option><option value="monthly">Monatlich (gleicher Kalendertag)</option><option value="once">Nur einmal (am Beginn-Datum)</option></select></div>
+  <div class="field" id="medEveryWrap" hidden><label for="medEvery">Alle wie viele Tage?</label><input id="medEvery" type="number" min="2" max="60" value="2"><span class="hint" style="margin:0">Du kannst hier zum Beispiel 28 eintragen, wenn Du selbst einen Abstand von vier Wochen festlegen möchtest.</span></div>
+  <div class="field full" id="medWeekdaysWrap" hidden><label>Wochentage</label><div class="wd" id="medWeekdays"></div></div>
+  <div class="field full" id="medMonthlyWrap" hidden><span class="hint" style="margin:0">Monatlich: Die Erinnerung erfolgt am gleichen Kalendertag wie das Beginn-Datum. Gibt es diesen Tag in einem Monat nicht (z. B. den 31.), wird der letzte Tag dieses Monats verwendet.</span></div>
+  <div class="field"><label for="medStart">Beginn *</label><input id="medStart" type="date" required></div>
+  <div class="field"><label for="medEnd">Ende (freiwillig)</label><input id="medEnd" type="date"></div>
+  <div class="field full"><label for="medNotes">Notizen (freiwillig)</label><textarea id="medNotes" maxlength="500"></textarea></div>
+ </div>
+ <div class="modal-actions"><button type="button" class="btn danger" id="medDelete" hidden>Löschen</button><button type="button" class="btn" data-close="medModal">Abbrechen</button><button class="btn primary" type="submit">Speichern</button></div>
+ </form>
+</div></div>
+
+<div class="modal-backdrop" id="shoppingPinModal"><div class="modal"><div class="modal-head"><h2 class="pin-modal-title"><span style="font-size:25px">📌</span><span id="shoppingPinTitle">Einkaufszettel</span></h2><button class="icon-btn" type="button" data-close="shoppingPinModal" aria-label="Schließen">×</button></div><div id="shoppingPinMeta" class="task-meta"></div><div id="shoppingPinNote" class="pin-note-alert" hidden></div><div id="shoppingPinItems" class="shopping-pin-list"></div><div class="modal-actions"><button class="btn" type="button" data-close="shoppingPinModal">Schließen</button><button class="btn primary" type="button" id="shoppingPinDone">Einkauf erledigt</button></div></div></div>
+<!-- Einstellungen -->
+<div class="modal-backdrop" id="settingsModal"><div class="modal">
+ <div class="modal-head"><h2>Dein Familienplaner</h2><button class="icon-btn" type="button" data-close="settingsModal" aria-label="Schließen">×</button></div>
+ <div class="settings-grid">
+  <div class="field"><label for="theme">Farbwelt</label><select id="theme"><option value="warm">Warm & natürlich</option><option value="colorful">Fröhlich & bunt</option><option value="fresh">Frisch & ruhig</option><option value="sport">Sportlich & dunkel</option></select><div class="swatches" id="swatches" aria-hidden="true"></div><span class="hint" style="margin:0">Die Farben von Familienmitgliedern bleiben so, wie Du sie gewählt hast.</span></div>
+  <div class="field"><label for="state">Bundesland für Feiertage</label><select id="state"><option value="SH">Schleswig-Holstein</option><option value="HH">Hamburg</option><option value="NI">Niedersachsen</option><option value="BE">Berlin</option><option value="BY">Bayern</option><option value="BW">Baden-Württemberg</option><option value="BB">Brandenburg</option><option value="HB">Bremen</option><option value="HE">Hessen</option><option value="MV">Mecklenburg-Vorpommern</option><option value="NW">Nordrhein-Westfalen</option><option value="RP">Rheinland-Pfalz</option><option value="SL">Saarland</option><option value="SN">Sachsen</option><option value="ST">Sachsen-Anhalt</option><option value="TH">Thüringen</option></select></div>
+  <div class="field"><label for="medCal">Medikamenten-Hinweise im Kalender</label><select id="medCal"><option value="nonames">Ohne Namen des Medikaments (empfohlen)</option><option value="names">Mit Namen des Medikaments</option><option value="off">Im Kalender nicht anzeigen</option></select><span class="hint" style="margin:0">Gilt auch für Handy-/Computer-Benachrichtigungen. Gesundheitsdaten sind besonders sensibel.</span></div>
+  <div class="field"><label>Datensicherung</label>
+   <label class="checkline"><input type="checkbox" id="exportMeds" checked> Medikamentendaten in die Sicherung aufnehmen</label>
+   <button class="btn" id="exportBtn" type="button">⬇ Kalenderdaten exportieren</button>
+   <span class="hint" style="margin:0">Speichert Termine, Personen, Geburtstage (und auf Wunsch Medikamente) als JSON-Datei auf diesem Gerät. Die Datei ist <strong>nicht verschlüsselt</strong>, bewahre sie sicher auf.</span>
+   <button class="btn" id="importBtn" type="button">⬆ Datensicherung einspielen</button><input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+  <div class="field"><label>Lokale Beispieldaten</label><button class="btn" id="resetBtn" type="button">Beispieldaten zurücksetzen</button></div>
+  <div class="field"><label>Medikamentendaten löschen</label><button class="btn danger" id="wipeMedBtn" type="button">Alle Medikamentendaten löschen</button><span class="hint" style="margin:0">Löscht Medikamente und Einnahmeprotokoll auf diesem Gerät.</span></div>
+  <details class="status"><summary>Was funktioniert in dieser Testversion – und was noch nicht?</summary><ul>
+   <li>✅ Speichern <strong>nur in diesem Browser auf diesem Gerät</strong> (nicht verschlüsselt)</li>
+   <li>✅ Farbwelten, Geburtstage, Medikamente, Aufgaben-Testbereich, Export und Einspielen</li>
+   <li>⚠️ Erinnerungen/Benachrichtigungen: nur solange die Seite geöffnet ist, und nur wenn Dein Gerät/Browser sie erlaubt. Keine garantierte Zustellung.</li>
+   <li>❌ Keine Cloud-Synchronisierung, keine Benutzerkonten, keine echten Rollen oder gemeinsame Aufgabenfreigabe</li>
+   <li>❌ „Privat“ ist nur eine Markierung, kein Schutz</li>
+   <li>❌ Feiertage und Schulferien kommen erst später</li>
+  </ul></details>
+  <p class="hint">Diese Vorschau speichert Daten nur in diesem Browser auf diesem Gerät. Gemeinsame Benutzerkonten, Cloud-Synchronisierung und echte private Terminrechte werden erst nach Einrichtung und Sicherheitstest der Online-Datenbank aktiviert.</p>
+ </div>
+</div></div>
+
+<!-- Aufgaben -->
+<div class="modal-backdrop" id="taskModal"><div class="modal">
+ <div class="modal-head"><h2 id="taskModalTitle">Neue Aufgabe</h2><button class="icon-btn" type="button" data-close="taskModal" aria-label="Schließen">×</button></div>
+ <form id="taskForm"><input type="hidden" id="taskId">
+ <div class="form-grid">
+  <div class="field full"><label for="taskTitle">Was soll erledigt werden? *</label><input id="taskTitle" required maxlength="120" placeholder="z. B. Oma B. zum Arzt fahren"></div>
+  <div class="field"><label for="taskFor">Für wen? (freiwillig)</label><input id="taskFor" maxlength="80" placeholder="z. B. Oma B."></div>
+  <div class="field"><label for="taskDate">Datum *</label><input id="taskDate" type="date" required></div>
+  <div class="field"><label for="taskTime">Uhrzeit (freiwillig)</label><input id="taskTime" type="time"></div>
+  <div class="field"><label for="taskRepeat">Wiederholung</label><select id="taskRepeat"><option value="none">Keine</option><option value="daily">Jeden Tag</option><option value="weekly">Jede Woche</option><option value="biweekly">Alle 14 Tage</option><option value="monthly">Jeden Monat</option><option value="yearly">Jedes Jahr</option></select></div>
+  <div class="field full"><label>Wer könnte unterstützen? (Mehrfachauswahl möglich)</label><div id="taskAssignees" class="wd"></div><span class="hint" style="margin:0">Die Auswahl ist ein Vorschlag. Die Aufgabe gilt erst als übernommen, wenn eine Person sie bestätigt.</span></div>
+  <div class="field full"><label for="taskShopping">🛒 Einkaufsliste (optional)</label><textarea id="taskShopping" rows="5" placeholder="Milch&#10;Butter&#10;Brot&#10;Obst"></textarea><span class="hint" style="margin:0">Bitte jeden Artikel in eine eigene Zeile schreiben. Die Artikel erscheinen anschließend einzeln zum Abhaken.</span></div>
+  <div class="field full"><label for="taskNotes">Notiz (freiwillig)</label><textarea id="taskNotes" maxlength="500" placeholder="Weitere Informationen"></textarea></div>
+ </div>
+ <p class="hint">Wiederholungen werden in dieser Testversion für die nächsten 12 Termine angelegt. Jede Wiederholung kann einzeln bearbeitet werden.</p>
+ <div class="modal-actions"><button type="button" class="btn" data-close="taskModal">Abbrechen</button><button class="btn primary" type="submit">Aufgabe speichern</button></div>
+ </form>
+</div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const P='fptest_';   /* Testversion nutzt eigene Speicherplätze und fasst die alte Version nicht an */
+const store={
+ get(k){try{return localStorage.getItem(k)}catch(e){return null}},
+ set(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}},
+ del(k){try{localStorage.removeItem(k)}catch(e){}}
+};
+const HEX=/^#[0-9a-fA-F]{6}$/,ID=/^[A-Za-z0-9_-]{1,40}$/,DATE=/^\d{4}-\d{2}-\d{2}$/,TIME=/^([01]\d|2[0-3]):[0-5]\d$/;
+const REPEATS=['none','weekly','biweekly','monthly','yearly'];
+const KINDS={family:['👪','Familie'],friend:['🧑‍🤝‍🧑','Freund/in'],acquaintance:['🙂','Bekannte/r'],pet:['🐾','Haustier']};
+const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const WD=[['Mo',1],['Di',2],['Mi',3],['Do',4],['Fr',5],['Sa',6],['So',0]];
+const cats=[
+ ['🩺','Arzt & Gesundheit','#d78d8d'],['🦷','Zahnarzt & Kieferorthopäde','#d6a2bd'],['⚽','Sport & Verein','#78a9c8'],
+ ['🎸','Musik & Unterricht','#a994c8'],['🎒','Schule & Kindergarten','#d8b36e'],['🚒','Jugendfeuerwehr & Pfadfinder','#e69a68'],
+ ['🧑‍🤝‍🧑','Freunde & Treffen','#80b5a0'],['🐾','Haustiere & Tierarzt','#b49b78'],['✈️','Urlaub & Ausflüge','#72b7b3'],
+ ['🎁','Einladungen & Geburtstage','#d88eae'],['🎉','Veranstaltungen & Feste','#d8a65e'],['📌','Sonstiges','#9b9b9b']
+];
+const THEMES={
+ warm:{meta:'#f6efe3',swatches:['#f6efe3','#e3d4bd','#c98a95','#d8c19a','#b7cdb8'],members:['#d98f9b','#c5a16e','#9fbf9f','#d9b99b','#b8a39a']},
+ colorful:{meta:'#fdf3fb',swatches:['#ffd6e5','#fff0c2','#c9f0d9','#cfe3ff','#7a55d3'],members:['#f48fb1','#ffb74d','#81c784','#64b5f6','#ba68c8','#4dd0e1']},
+ fresh:{meta:'#edf4fa',swatches:['#edf4fa','#cfe3f5','#cdeee0','#e6e1f6','#3d6c9c'],members:['#7fa9d1','#7cc7b0','#a99bd6','#8fb8c9','#9db5a8']},
+sport:{meta:'#263542',swatches:['#263542','#354958','#607686','#35c2b8','#b7f2ec'],members:['#19a7a0','#4f86a6','#8c9aa6','#d08a54','#8a79b8']}
+};
+let today=new Date();today.setHours(0,0,0,0);
+const iso=d=>{let x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)};
+const pd=s=>new Date(s+'T12:00:00');
+const plusDays=(d,n)=>{let x=new Date(d);x.setDate(x.getDate()+n);return x};
+const dim=(y,m)=>new Date(y,m+1,0).getDate();
+const fmt=(d,opt={day:'numeric',month:'long',year:'numeric'})=>new Intl.DateTimeFormat('de-DE',opt).format(d);
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+const str=(v,n=200)=>String(v??'').slice(0,n);
+function validDate(s){if(typeof s!=='string'||!DATE.test(s))return false;let d=pd(s);return !isNaN(d)&&iso(d)===s}
+
+/* ---------- Prüfen/Säubern (schützt vor kaputten oder manipulierten Daten) ---------- */
+function cleanMember(m){if(!m||typeof m!=='object'||!ID.test(m.id))return null;return{id:m.id,name:str(m.name,60)||'Ohne Namen',role:str(m.role,30),emoji:str(m.emoji,8)||'👤',color:HEX.test(m.color)?m.color:'#aaaaaa'}}
+function cleanEvent(e){if(!e||typeof e!=='object'||!ID.test(e.id)||!validDate(e.date))return null;
+ return{id:e.id,title:str(e.title,120)||'Termin',person:ID.test(e.person)?e.person:'',cat:Number.isInteger(e.cat)&&e.cat>=0&&e.cat<cats.length?e.cat:cats.length-1,date:e.date,start:TIME.test(e.start)?e.start:'',end:TIME.test(e.end)?e.end:'',place:str(e.place,200),notes:str(e.notes,1000),important:!!e.important,private:!!e.private,repeat:REPEATS.includes(e.repeat)?e.repeat:'none'}}
+function cleanBday(b){if(!b||typeof b!=='object'||!ID.test(b.id))return null;let mo=+b.month,d=+b.day;if(!(mo>=1&&mo<=12)||!(d>=1&&d<=dim(2024,mo-1)))return null;
+ let y=b.year===null||b.year===''||b.year===undefined?null:+b.year;if(y!==null&&!(Number.isInteger(y)&&y>=1900&&y<=2100))y=null;
+ return{id:b.id,name:str(b.name,60)||'Ohne Namen',kind:KINDS[b.kind]?b.kind:'friend',month:mo,day:d,year:y,notes:str(b.notes,300)}}
+function cleanMed(m){if(!m||typeof m!=='object'||!ID.test(m.id)||!validDate(m.start))return null;
+ let times=Array.isArray(m.times)?[...new Set(m.times.filter(t=>TIME.test(t)))].sort():[];if(!times.length)return null;
+ let rep=['daily','every','weekdays','monthly','once'].includes(m.repeat)?m.repeat:'daily';
+ let wds=Array.isArray(m.weekdays)?[...new Set(m.weekdays.map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<=6))]:[];
+ let every=Math.min(60,Math.max(2,parseInt(m.every)||2));
+ if(rep==='weekdays'&&!wds.length)rep='daily';
+ return{id:m.id,person:ID.test(m.person)?m.person:'',name:str(m.name,80)||'Ohne Namen',form:['Tablette','Tropfen','Spritze / Injektion','Sonstiges'].includes(m.form)?m.form:'Sonstiges',formOther:str(m.formOther,60),amount:str(m.amount,30),unit:str(m.unit,30),times,intervalNote:str(m.intervalNote,80),repeat:rep,every,weekdays:wds,start:m.start,end:validDate(m.end)?m.end:'',notes:str(m.notes,500)}}
+function cleanTask(t){if(!t||typeof t!=='object'||!ID.test(t.id)||!validDate(t.date))return null;
+ let repeat=['none','daily','weekly','biweekly','monthly','yearly'].includes(t.repeat)?t.repeat:'none';
+ return{id:t.id,seriesId:ID.test(t.seriesId)?t.seriesId:t.id,title:str(t.title,120)||'Aufgabe',forWhom:str(t.forWhom,80),date:t.date,time:TIME.test(t.time)?t.time:'',repeat,assignees:Array.isArray(t.assignees)?[...new Set(t.assignees.filter(x=>ID.test(x)&&members.some(m=>m.id===x)))]:[],claimedBy:ID.test(t.claimedBy)&&members.some(m=>m.id===t.claimedBy)?t.claimedBy:'',status:['open','claimed','done'].includes(t.status)?t.status:'open',shoppingItems:(()=>{let src=Array.isArray(t.shoppingItems)?t.shoppingItems:Array.isArray(t.steps)?t.steps:[];if(!Array.isArray(t.shoppingItems)&&src.length===1&&typeof src[0]?.text==='string'&&src[0].text.includes(','))src=src[0].text.split(',').map(text=>({text:text.trim(),done:false}));return src.slice(0,50).map(x=>({text:str(typeof x==='string'?x:x.text,120),done:!!(x&&x.done)})).filter(x=>x.text)})(),notes:str(t.notes,500)}}
+function cleanLog(l){if(!l||typeof l!=='object'||!ID.test(l.id)||!validDate(l.date)||!TIME.test(l.time)||!['taken','skipped','open'].includes(l.status))return null;
+ let at=new Date(l.at);return{id:l.id,medId:ID.test(l.medId)?l.medId:'',medName:str(l.medName,80),personId:ID.test(l.personId)?l.personId:'',personName:str(l.personName,60),date:l.date,time:l.time,status:l.status,at:isNaN(at)?new Date().toISOString():at.toISOString()}}
+const cleanList=(arr,fn)=>(Array.isArray(arr)?arr:[]).map(fn).filter(Boolean);
+
+/* ---------- Laden ---------- */
+function load(key){let raw=store.get(P+key);if(raw===null)return null;try{return JSON.parse(raw)}catch(e){return null}}
+function readOld(key){let raw=store.get(key);if(raw===null)return null;try{return JSON.parse(raw)}catch(e){return null}}
+const sampleMembers=[
+ {id:'m1',name:'Mama',role:'Mama',emoji:'👩',color:'#d98f9b'},
+ {id:'m2',name:'Papa',role:'Papa',emoji:'👨',color:'#7ca7c5'},
+ {id:'m3',name:'Leon',role:'Kind',emoji:'👦',color:'#86ae91'},
+ {id:'m4',name:'Mila',role:'Kind',emoji:'👧',color:'#b59bc9'},
+ {id:'m5',name:'Bruno',role:'Haustier',emoji:'🐶',color:'#c5a16e'}
+];
+const sampleEvents=()=>[
+ {id:'e1',title:'Fußballtraining',person:'m3',cat:2,date:iso(today),start:'08:30',end:'10:00',place:'Sportplatz',important:false,repeat:'weekly'},
+ {id:'e2',title:'Zahnarzt',person:'m1',cat:1,date:iso(today),start:'09:00',end:'09:45',place:'Praxis Müller',important:true,repeat:'none'},
+ {id:'e3',title:'Impfkontrolle',person:'m5',cat:7,date:iso(today),start:'10:30',end:'11:00',place:'Tierarzt am Park',important:false,repeat:'none'},
+ {id:'e4',title:'Gitarre',person:'m4',cat:3,date:iso(plusDays(today,1)),start:'16:00',end:'16:45',place:'Musikschule',important:false,repeat:'weekly'},
+ {id:'e5',title:'Elternabend',person:'m1',cat:4,date:iso(plusDays(today,3)),start:'19:00',end:'20:00',place:'Grundschule',important:true,repeat:'none'}
+];
+let members,events,birthdays,meds,medLog,tasks,settings;
+let healthProfiles={};let activeHealthMember='';
+(function init(){
+ let noMig=store.get(P+'nomigrate')==='1';
+ let m=load('members'),e=load('events');
+ /* Erststart der Testversion: Daten der alten Version nur LESEN und kopieren */
+ if(m===null&&!noMig)m=readOld('fp_members');
+ if(e===null&&!noMig)e=readOld('fp_events');
+ members=cleanList(m,cleanMember);if(!members.length)members=sampleMembers.slice();
+ events=e===null?sampleEvents():cleanList(e,cleanEvent);
+ birthdays=cleanList(load('birthdays'),cleanBday);
+ meds=cleanList(load('meds'),cleanMed);
+ medLog=cleanList(load('medlog'),cleanLog);
+ tasks=cleanList(load('tasks'),cleanTask);
+ healthProfiles=load('healthProfiles')||{};
+ let s=load('settings')||{};
+ let th=store.get(P+'theme');
+ settings={theme:THEMES[th]?th:(THEMES[s.theme]?s.theme:'warm'),state:/^[A-Z]{2}$/.test(store.get(P+'state')||s.state||'')?(store.get(P+'state')||s.state):'SH',medCal:['names','nonames','off'].includes(s.medCal)?s.medCal:'nonames',notify:!!s.notify};
+})();
+let selected=new Date(today),view='day',theme=settings.theme,state=settings.state,area='calendar';
+let saveWarned=false;
+function save(){
+ let ok=store.set(P+'healthProfiles',JSON.stringify(healthProfiles))&store.set(P+'members',JSON.stringify(members))&store.set(P+'events',JSON.stringify(events))&store.set(P+'birthdays',JSON.stringify(birthdays))&store.set(P+'meds',JSON.stringify(meds))&store.set(P+'medlog',JSON.stringify(medLog))&store.set(P+'tasks',JSON.stringify(tasks))&store.set(P+'settings',JSON.stringify(settings))&store.set(P+'theme',settings.theme)&store.set(P+'state',settings.state);
+ if(!ok&&!saveWarned){saveWarned=true;toast('⚠️ Speichern nicht möglich (Browser blockiert Speicher oder ist voll). Bitte Datensicherung exportieren!')}
+ return !!ok;
+}
+let toastTimer;
+function toast(s){let t=$('toast');t.textContent=s;t.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.style.display='none',3200)}
+function member(id){return members.find(m=>m.id===id)||{name:'Unbekannt',emoji:'👤',color:'#aaaaaa'}}
+function cat(i){return cats[i]||cats[cats.length-1]}
+const col=c=>HEX.test(c)?c:'#aaaaaa';
+
+/* ---------- Farbwelt ---------- */
+function applyTheme(t){
+ if(!THEMES[t])t='warm';
+ theme=t;settings.theme=t;
+ document.documentElement.setAttribute('data-theme',t);
+ $('metaTheme').setAttribute('content',THEMES[t].meta);
+ $('swatches').innerHTML=THEMES[t].swatches.map(c=>`<span class="swatch" style="background:${c}"></span>`).join('');
+ $('theme').value=t;
+}
+
+/* ---------- Wiederholungen (Termine) ---------- */
+function eventOnDate(e,d){
+ let start=pd(e.date),target=new Date(d);target.setHours(12,0,0,0);
+ if(e.date===iso(target))return true;
+ if(e.repeat==='none'||target<start)return false;
+ let days=Math.round((target-start)/86400000);
+ if(e.repeat==='weekly')return days%7===0;
+ if(e.repeat==='biweekly')return days%14===0;
+ /* Monat/Jahr: Gibt es den Tag nicht (z. B. 31. im April, 29.2.), zählt der letzte Tag des Monats */
+ let lastDay=dim(target.getFullYear(),target.getMonth());
+ if(e.repeat==='monthly')return target.getDate()===Math.min(start.getDate(),lastDay);
+ if(e.repeat==='yearly')return target.getMonth()===start.getMonth()&&target.getDate()===Math.min(start.getDate(),lastDay);
+ return false;
+}
+function eventsFor(d){return events.filter(e=>eventOnDate(e,d)).sort((a,b)=>(a.start||'').localeCompare(b.start||''))}
+
+/* ---------- Geburtstage ---------- */
+function bdayOn(b,d){let m=d.getMonth()+1,day=d.getDate();if(b.month===m&&b.day===day)return true;
+ return b.month===2&&b.day===29&&m===2&&day===28&&dim(d.getFullYear(),1)===28}  /* 29.2. wird in Nicht-Schaltjahren am 28.2. angezeigt */
+function bdaysFor(d){return birthdays.filter(b=>bdayOn(b,d)).sort((a,b)=>a.name.localeCompare(b.name,'de'))}
+function nextBday(b,from=today){
+ for(let y=from.getFullYear();y<=from.getFullYear()+1;y++){
+  let day=(b.month===2&&b.day===29&&dim(y,1)===28)?28:b.day,c=new Date(y,b.month-1,day,12);
+  if(iso(c)>=iso(from))return c}
+ return null}
+const daysUntil=(d,from=today)=>Math.round((pd(iso(d))-pd(iso(from)))/86400000);
+const ageOn=(b,d)=>b.year?d.getFullYear()-b.year:null;
+function untilText(n){return n===0?'heute 🎉':n===1?'morgen':`in ${n} Tagen`}
+function bdayList(){return birthdays.map(b=>({b,next:nextBday(b)})).filter(x=>x.next).map(x=>({...x,n:daysUntil(x.next)})).sort((a,c)=>a.n-c.n||a.b.name.localeCompare(c.b.name,'de'))}
+
+/* ---------- Medikamente (nur Deine Eingaben, keine Berechnung) ---------- */
+function medActiveOn(m,d){let t=iso(d);if(t<m.start)return false;if(m.end&&t>m.end)return false;
+ if(m.repeat==='daily')return true;
+ if(m.repeat==='once')return t===m.start;
+ if(m.repeat==='every'){return Math.round((pd(t)-pd(m.start))/86400000)%m.every===0}
+ if(m.repeat==='weekdays')return m.weekdays.includes(d.getDay());
+ if(m.repeat==='monthly'){let startDay=pd(m.start).getDate(),lastDay=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return d.getDate()===Math.min(startDay,lastDay)}
+ return false}
+function statusOf(medId,date,time){for(let i=medLog.length-1;i>=0;i--){let l=medLog[i];if(l.medId===medId&&l.date===date&&l.time===time)return l.status}return 'open'}
+function dosesFor(d){let out=[],t=iso(d);meds.forEach(m=>{if(medActiveOn(m,d))m.times.forEach(tm=>out.push({med:m,date:t,time:tm,key:m.id+'|'+t+'|'+tm,status:statusOf(m.id,t,tm)}))});return out.sort((a,b)=>a.time.localeCompare(b.time)||a.med.name.localeCompare(b.med.name,'de'))}
+const STATUS={taken:'Eingenommen',skipped:'Ausgelassen',open:'Noch offen'};
+function markDose(key,status){
+ let [medId,date,time]=key.split('|'),m=meds.find(x=>x.id===medId);if(!m||!STATUS[status])return;
+ if(statusOf(medId,date,time)===status)return;
+ let p=member(m.person);
+ medLog.push({id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),medId,medName:m.name,personId:m.person,personName:p.name,date,time,status,at:new Date().toISOString()});
+ save();render();toast(status==='open'?'Auf „Noch offen“ gesetzt':'Eingetragen: '+STATUS[status]);
+}
+const nowHM=()=>{let n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')};
+function dueDoses(){let t=iso(today),n=nowHM();return dosesFor(today).filter(d=>d.status==='open'&&d.time<=n)}
+function medRepeatText(m){
+ if(m.repeat==='daily')return 'Jeden Tag';
+ if(m.repeat==='once')return 'Einmalig';
+ if(m.repeat==='every')return `Alle ${m.every} Tage`;
+ if(m.repeat==='monthly')return 'Monatlich (gleicher Kalendertag)';
+ return WD.filter(w=>m.weekdays.includes(w[1])).map(w=>w[0]).join(', ');
+}
+const medFormText=m=>m.form==='Sonstiges'&&m.formOther?m.formOther:m.form;
+
+
+/* ---------- Gesundheitsprofile ---------- */
+function healthData(id){let p=healthProfiles[id];if(!p||typeof p!=='object')return{status:'unknown',entries:[]};return{status:['unknown','none','has'].includes(p.status)?p.status:'unknown',entries:Array.isArray(p.entries)?p.entries:[]}}
+function healthStatusLabel(status){return status==='has'?'Allergien vorhanden':status==='none'?'Keine bekannten Allergien':'Noch nicht angegeben'}
+function renderHealthProfile(){
+ let m=members.find(x=>x.id===activeHealthMember);if(!m)return;
+ let p=healthData(m.id),box=$('healthStatusBox');
+ $('healthTitle').textContent=`${m.emoji} ${m.name} – Gesundheitsprofil`;
+ $('healthStatus').value=p.status;
+ box.className='health-status '+(p.status==='has'?'yes':p.status==='none'?'no':'unknown');
+ box.textContent=(p.status==='has'?'⚠️ ':p.status==='none'?'✓ ':'⚪ ')+healthStatusLabel(p.status);
+ $('healthApothekeText').textContent=p.status==='has'
+  ?`Für ${m.name} sind Allergien eingetragen. Bitte die folgenden Angaben der Apotheke zeigen und bei Unklarheiten direkt nachfragen.`
+  :p.status==='none'
+   ?`Für ${m.name} wurde „Keine bekannten Allergien“ eingetragen. Diese Angabe ist eine Selbstauskunft und ersetzt keine Rückfrage.`
+   :`Für ${m.name} liegen noch keine Angaben zu Allergien vor. Bitte nicht davon ausgehen, dass keine Allergien bestehen.`;
+ $('healthEntries').innerHTML=p.entries.length?p.entries.map((e,i)=>`<div class="health-entry"><strong>⚠️ ${esc(e.allergen||'Allergie')}</strong>${e.specific?`<div><b>Genaue Bezeichnung:</b> ${esc(e.specific)}</div>`:''}${e.reaction?`<div><b>Reaktion:</b> ${esc(e.reaction)}</div>`:''}${e.since?`<div><b>Bekannt seit:</b> ${esc(e.since)}</div>`:''}<button class="btn" type="button" data-health-remove="${i}" style="margin-top:8px">Entfernen</button></div>`).join(''):'<div class="sub">Noch keine einzelnen Allergien eingetragen.</div>';
+ $('healthEntries').querySelectorAll('[data-health-remove]').forEach(b=>b.onclick=()=>{p.entries.splice(+b.dataset.healthRemove,1);if(!p.entries.length&&p.status==='has')p.status='unknown';healthProfiles[m.id]=p;save();renderHealthProfile()});
+}
+function openHealthProfile(id){activeHealthMember=id;renderHealthProfile();$('healthAllergen').value='';$('healthSpecific').value='';$('healthReaction').value='';$('healthSince').value='';$('healthModal').classList.add('show')}
+$('healthStatus').onchange=()=>{let p=healthData(activeHealthMember);p.status=$('healthStatus').value;if(p.status==='has'&&!p.entries.length){}healthProfiles[activeHealthMember]=p;renderHealthProfile();save()};
+$('healthAdd').onclick=()=>{let p=healthData(activeHealthMember),allergen=$('healthAllergen').value.trim();if(!allergen){toast('Bitte Allergie oder Auslöser eintragen.');return}p.entries.push({allergen,specific:$('healthSpecific').value.trim(),reaction:$('healthReaction').value.trim(),since:$('healthSince').value.trim()});p.status='has';healthProfiles[activeHealthMember]=p;$('healthAllergen').value='';$('healthSpecific').value='';$('healthReaction').value='';$('healthSince').value='';save();renderHealthProfile();toast('Allergie eingetragen')};
+$('healthSave').onclick=()=>{
+ let p=healthData(activeHealthMember);
+ let allergen=$('healthAllergen').value.trim();
+ if(allergen){
+  p.entries.push({allergen,specific:$('healthSpecific').value.trim(),reaction:$('healthReaction').value.trim(),since:$('healthSince').value.trim()});
+  p.status='has';
+ }else{
+  p.status=$('healthStatus').value;
+ }
+ if(p.status==='none')p.entries=[];
+ healthProfiles[activeHealthMember]=p;
+ let saved=save();
+ if(!saved){toast('⚠️ Speichern nicht möglich. Bitte Browser-Speicher prüfen.');return}
+ $('healthAllergen').value='';$('healthSpecific').value='';$('healthReaction').value='';$('healthSince').value='';
+ renderHealthProfile();
+ toast('Gesundheitsprofil gespeichert');
+};
+
+/* ---------- Rendering ---------- */
+function renderSide(){
+ $('memberCount').textContent=`(${members.length}/10)`;
+ $('members').innerHTML=members.map(m=>`<button type="button" class="member" data-health-person="${esc(m.id)}" style="width:100%;text-align:left;cursor:pointer"><div class="avatar" style="background:${col(m.color)}25">${esc(m.emoji)}</div><div><strong>${esc(m.name)}</strong><small>${esc(m.role)}</small></div><span class="dot" style="background:${col(m.color)}"></span></button>`).join('');
+ $('members').querySelectorAll('[data-health-person]').forEach(b=>b.onclick=()=>openHealthProfile(b.dataset.healthPerson));
+ $('categories').innerHTML=cats.map(c=>`<div class="cat"><span class="cat-icon" style="--cc:${c[2]}">${c[0]}</span>${esc(c[1])}</div>`).join('');
+ let count=eventsFor(selected).length,bd=bdayList().filter(x=>x.n<=60).slice(0,3);
+ $('sideBdays').innerHTML=bd.length?bd.map(x=>`<div class="side-bday"><span>${KINDS[x.b.kind][0]} ${esc(x.b.name)}</span><span class="sub">${untilText(x.n)}</span></div>`).join(''):'<div class="sub">Keine Geburtstage in den nächsten 60 Tagen.</div>';
+ let open=dueDoses().length;
+ $('summary').innerHTML=`<strong>${count}</strong> Termine am ausgewählten Tag<br><strong>${members.length}</strong> Familienmitglieder`+(open?`<br>💊 <strong>${open}</strong> offene Erinnerung${open>1?'en':''} heute`:'');
+}
+function render(){
+ renderSide();
+ $('areaCalendar').hidden=area!=='calendar';$('areaBirthdays').hidden=area!=='birthdays';$('areaMeds').hidden=area!=='meds';$('areaTasks').hidden=area!=='tasks';
+ $('calBtn').hidden=area==='calendar';
+ $('bdayBtn').classList.toggle('active',area==='birthdays');$('medBtn').classList.toggle('active',area==='meds');$('tasksBtn').classList.toggle('active',area==='tasks');
+ updateDueBar();
+ if(area==='birthdays'){renderBirthdays();return}
+ if(area==='meds'){renderMeds();return}
+ if(area==='tasks'){renderTasks();return}
+ let h=$('heading'),s=$('subheading');
+ if(view==='day'){h.textContent=fmt(selected,{weekday:'long',day:'numeric',month:'long'});s.textContent=fmt(selected,{year:'numeric'})}
+ else if(view==='week'){let st=weekStart(selected),en=plusDays(st,6);h.textContent='Diese Woche';s.textContent=`${fmt(st,{day:'numeric',month:'short'})} – ${fmt(en,{day:'numeric',month:'long',year:'numeric'})}`}
+ else if(view==='month'){h.textContent=fmt(selected,{month:'long',year:'numeric'});s.textContent='Monatsübersicht'}
+ else {h.textContent=String(selected.getFullYear());s.textContent='Jahresübersicht'}
+ document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+ let c=$('calendarContent');
+ if(view==='day')c.innerHTML=dayHTML(selected);
+ if(view==='week')c.innerHTML=weekHTML(selected);
+ if(view==='month')c.innerHTML=monthHTML(selected);
+ if(view==='year')c.innerHTML=yearHTML(selected.getFullYear());
+ c.querySelectorAll('[data-date]').forEach(b=>b.addEventListener('click',()=>{selected=pd(b.dataset.date);view='day';render()}));
+ c.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openEvent(b.dataset.edit)));
+ c.querySelectorAll('[data-shopping-pin]').forEach(b=>{b.addEventListener('click',e=>{e.stopPropagation();openShoppingPin(b.dataset.shoppingPin)});b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();openShoppingPin(b.dataset.shoppingPin)}})});
+}
+function weekStart(d){let x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
+function bdayBannerHTML(d){
+ return bdaysFor(d).map(b=>{let isToday=iso(d)===iso(today),age=ageOn(b,d),k=KINDS[b.kind];
+  return `<div class="bday-banner"><span class="big">🎂</span><div>${esc(b.name)} hat ${isToday?'heute':'an diesem Tag'} Geburtstag! ${b.kind==='pet'?'🐾':'🎉'}<small>${k[1]}${age>0?` · ${age}. Geburtstag`:''}${b.notes?` · ${esc(b.notes)}`:''}</small></div></div>`}).join('');
+}
+function medDayCard(d){
+ if(settings.medCal==='off')return '';
+ let list=dosesFor(d);if(!list.length)return '';
+ let names=settings.medCal==='names';
+ return `<h3 class="sec">💊 Medikamenten-Erinnerungen</h3>`+list.map(x=>{let p=member(x.med.person),late=iso(d)===iso(today)&&x.status==='open'&&x.time<=nowHM();
+  return `<div class="row"><div class="grow"><strong>${esc(x.time)}</strong> · ${esc(p.emoji)} ${esc(p.name)}<div class="event-meta">${names?esc(x.med.name)+(x.med.amount?` · ${esc(x.med.amount)} ${esc(x.med.unit)}`:''):'Medikament (Name ausgeblendet)'}${late?' · Uhrzeit ist vorbei':''}</div>
+  <div class="seg">${['taken','skipped','open'].map(s=>`<button type="button" class="btn ${x.status===s?'active':''}" aria-pressed="${x.status===s}" data-mark="${esc(x.key)}" data-status="${s}">${STATUS[s]}</button>`).join('')}</div></div><span class="pill ${x.status}">${STATUS[x.status]}</span></div>`}).join('')+`<div class="hint" style="margin-top:0">Alle Angaben stammen von Dir. Details und Protokoll findest Du im Bereich „Medikamente“.</div>`;
+}
+function shoppingTasksFor(d){return tasks.filter(t=>t.date===iso(d)&&t.shoppingItems&&t.shoppingItems.length>0)}
+function shoppingPinHTML(t,extra=''){let left=t.shoppingItems.filter(x=>!x.done).length;return `<button type="button" class="shopping-pin ${extra}" data-shopping-pin="${esc(t.id)}" title="Einkaufszettel öffnen"><span class="pin">📌</span><span> ${esc(t.title)} · ${left} offen</span></button>`}
+function openShoppingPin(id){let t=tasks.find(x=>x.id===id);if(!t)return;$('shoppingPinTitle').textContent=t.title;$('shoppingPinMeta').textContent=`${fmt(pd(t.date),{weekday:'long',day:'numeric',month:'long'})}${t.forWhom?' · Für: '+t.forWhom:''}${t.claimedBy?' · Übernommen von '+member(t.claimedBy).name:''}`;let noteBox=$('shoppingPinNote');noteBox.hidden=!t.notes;noteBox.innerHTML=t.notes?`<span class="pin-note-label">⚠️ Wichtige Notiz</span>${esc(t.notes).replace(/\\n/g,'<br>')}`:'';$('shoppingPinItems').innerHTML=t.shoppingItems.map((x,i)=>`<label><input type="checkbox" data-pin-item="${i}" ${x.done?'checked':''}><span style="${x.done?'text-decoration:line-through;opacity:.65':''}">${esc(x.text)}</span></label>`).join('');$('shoppingPinDone').onclick=()=>{t.status='done';save();close('shoppingPinModal');render();toast('Einkauf als erledigt markiert')};$('shoppingPinItems').querySelectorAll('[data-pin-item]').forEach(c=>c.onchange=()=>{let i=+c.dataset.pinItem;t.shoppingItems[i].done=c.checked;save();openShoppingPin(id);});$('shoppingPinModal').classList.add('show')}
+function dayHTML(d){
+ let list=eventsFor(d),bb=bdayBannerHTML(d),mc=medDayCard(d),soon='';
+ if(iso(d)===iso(today)){let s=bdayList().filter(x=>x.n>0&&x.n<=14).slice(0,3);if(s.length)soon=`<p class="soon-line">🎈 Demnächst: ${s.map(x=>`${esc(x.b.name)} (${untilText(x.n)})`).join(', ')}</p>`}
+ let body;
+ if(!list.length&&!bb&&!mc&&!shoppingTasksFor(d).length)return `<div class="empty"><div style="font-size:34px">🌷</div><strong>Heute ist noch Platz im Kalender</strong>Füge einen Termin hinzu und behalte alles im Blick.</div>`+soon;
+ body=list.length?`<div class="day-list">${list.map(e=>{let m=member(e.person),c=cat(e.cat);return `<div class="event"><div class="event-time">${esc(e.start||'–')}<div class="sub">${esc(e.end||'')}</div></div><div class="event-bar" style="background:${col(m.color)}"></div><div><div class="event-title">${c[0]} ${esc(e.title)} ${e.important?'⭐':''} ${e.private?'🔒':''}</div><div class="event-meta">${esc(m.emoji)} ${esc(m.name)} · ${esc(e.place||'Ort nicht angegeben')}</div>${e.notes?`<div class="event-note-alert">⚠️ ${esc(e.notes)}</div>`:''}</div><div style="display:grid;gap:6px;justify-items:end"><span class="badge">${esc(c[1])}</span><button class="btn" data-edit="${esc(e.id)}" style="padding:5px 8px;font-size:11px">Bearbeiten</button></div></div>`}).join('')}</div>`:`<div class="sub" style="margin:6px 0 10px">Keine Termine an diesem Tag.</div>`;
+ let pins=shoppingTasksFor(d);let pinBlock=pins.length?`<h3 class=\"sec\">📌 Einkaufszettel</h3><div style=\"display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px\">${pins.map(t=>shoppingPinHTML(t)).join('')}</div>`:'';return soon+bb+pinBlock+body+mc;
+}
+function monthHTML(d){
+ let first=new Date(d.getFullYear(),d.getMonth(),1),offset=(first.getDay()+6)%7,start=plusDays(first,-offset);
+ let cells='';for(let i=0;i<42;i++){let day=plusDays(start,i),list=eventsFor(day),same=day.getMonth()===d.getMonth(),bd=bdaysFor(day).length,md=settings.medCal!=='off'&&dosesFor(day).length;
+  cells+=`<button class="day-cell ${same?'':'muted'} ${iso(day)===iso(today)?'today':''} ${iso(day)===iso(d)?'selected':''}" data-date="${iso(day)}"><div class="day-num">${day.getDate()}</div><div class="mini-dots">${list.slice(0,8).map(e=>`<span class="mini-dot" style="background:${col(member(e.person).color)}"></span>`).join('')}${bd?'<span class="mini-ico" title="Geburtstag">🎂</span>':''}${md?'<span class="mini-ico" title="Medikament">💊</span>':''}${shoppingTasksFor(day).length?shoppingTasksFor(day).map(t=>`<span class="shopping-pin month-pin" role="button" tabindex="0" data-shopping-pin="${esc(t.id)}" title="Einkaufszettel öffnen">📌</span>`).join(''):''}</div></button>`}
+ return `<div class="month-grid">${['Mo','Di','Mi','Do','Fr','Sa','So'].map(x=>`<div class="weekday">${x}</div>`).join('')}${cells}</div>`;
+}
+function weekHTML(d){
+ let st=weekStart(d);return `<div class="week-grid">${Array.from({length:7},(_,i)=>{let day=plusDays(st,i),list=eventsFor(day);
+  let bd=bdaysFor(day).map(b=>`<div class="week-event bday">🎂 ${esc(b.name)}</div>`).join('');
+  let md=settings.medCal==='off'?'':dosesFor(day).map(x=>`<div class="week-event med">💊 ${esc(x.time)}${settings.medCal==='names'?' '+esc(x.med.name):''}</div>`).join('');
+  return `<div class="week-col"><h4>${fmt(day,{weekday:'short',day:'numeric'})}</h4><button class="btn" data-date="${iso(day)}" style="padding:5px 7px;font-size:11px;width:100%">Tag öffnen</button>${bd}${list.map(e=>`<div class="week-event" style="background:${col(member(e.person).color)}30;border-left:3px solid ${col(member(e.person).color)}"><strong>${esc(e.start||'')} ${cat(e.cat)[0]}</strong><br>${esc(e.title)}</div>`).join('')}${md}${shoppingTasksFor(day).map(t=>shoppingPinHTML(t,'week-pin')).join('')}</div>`}).join('')}</div>`;
+}
+function yearHTML(y){
+ return `<div class="year-grid">${Array.from({length:12},(_,i)=>{let count=events.filter(e=>pd(e.date).getFullYear()===y&&pd(e.date).getMonth()===i).length,bc=birthdays.filter(b=>b.month===i+1).length;return `<button class="year-month" data-month="${i}"><strong>${new Intl.DateTimeFormat('de-DE',{month:'long'}).format(new Date(y,i,1))}</strong><span>${count} gespeicherte Termine</span>${bc?`<span>🎂 ${bc} Geburtstag${bc>1?'e':''}</span>`:''}</button>`}).join('')}</div>`;
+}
+
+/* ---------- Bereich Geburtstage ---------- */
+function renderBirthdays(){
+ let all=bdayList(),soon=all.filter(x=>x.n<=60).slice(0,5);
+ const row=x=>{let b=x.b,age=ageOn(b,x.next);return `<div class="row"><span class="big">${KINDS[b.kind][0]}</span><div class="grow"><strong>${esc(b.name)}</strong><div class="event-meta">${KINDS[b.kind][1]} · ${b.day}. ${MONTHS[b.month-1]}${b.year?` ${b.year}`:''}${age>0?` · wird ${age}`:''}${b.notes?` · ${esc(b.notes)}`:''}</div></div><span class="pill ${x.n===0?'taken':'open'}">${untilText(x.n)}</span><button class="btn" data-editbday="${esc(b.id)}" style="padding:6px 9px;font-size:12px">Bearbeiten</button></div>`};
+ $('areaBirthdays').innerHTML=`<div class="area-title"><h2>🎂 Geburtstage</h2><button class="btn primary" type="button" data-addbday>＋ Geburtstag</button></div>
+ <div class="box">Geburtstage für Familie, Freunde, Bekannte und Haustiere. Sie wiederholen sich jedes Jahr und erscheinen automatisch im Kalender (ohne doppelte Einträge).</div>
+ <h3 class="sec" style="margin-top:0">Bald dran (nächste 60 Tage)</h3>
+ ${soon.length?soon.map(row).join(''):'<div class="sub">Keine Geburtstage in den nächsten 60 Tagen.</div>'}
+ <h3 class="sec">Alle Geburtstage (${all.length})</h3>
+ ${all.length?all.map(row).join(''):`<div class="empty"><div style="font-size:34px">🎈</div><strong>Noch keine Geburtstage</strong>Tippe auf „＋ Geburtstag“, um den ersten einzutragen.</div>`}`;
+}
+function openBday(id=null){
+ let b=birthdays.find(x=>x.id===id);$('bdayForm').reset();$('bdayId').value=b?b.id:'';
+ $('bdayModalTitle').textContent=b?'Geburtstag bearbeiten':'Geburtstag eintragen';
+ $('bdayDay').innerHTML=Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+ $('bdayMonth').innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
+ if(b){$('bdayName').value=b.name;$('bdayKind').value=b.kind;$('bdayDay').value=b.day;$('bdayMonth').value=b.month;$('bdayYear').value=b.year||'';$('bdayNotes').value=b.notes}
+ $('bdayDelete').hidden=!b;$('bdayModal').classList.add('show');
+}
+$('bdayForm').addEventListener('submit',ev=>{
+ ev.preventDefault();let id=$('bdayId').value,mo=+$('bdayMonth').value,d=+$('bdayDay').value,yr=$('bdayYear').value.trim();
+ let y=yr===''?null:parseInt(yr,10);
+ if(y!==null&&!(y>=1900&&y<=2100)){toast('Bitte ein Geburtsjahr zwischen 1900 und 2100 eintragen (oder leer lassen).');return}
+ let maxDay=y!==null?dim(y,mo-1):dim(2024,mo-1);
+ if(d>maxDay){toast(`Den ${d}. ${MONTHS[mo-1]} gibt es${y!==null?' in '+y:''} nicht.`);return}
+ let data=cleanBday({id:id||'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:$('bdayName').value.trim(),kind:$('bdayKind').value,month:mo,day:d,year:y,notes:$('bdayNotes').value.trim()});
+ if(!data){toast('Bitte Name und Datum prüfen.');return}
+ if(id)birthdays=birthdays.map(b=>b.id===id?data:b);else birthdays.push(data);
+ save();close('bdayModal');render();toast('Geburtstag gespeichert 🎂');
+});
+$('bdayDelete').onclick=()=>{let id=$('bdayId').value,b=birthdays.find(x=>x.id===id);if(b&&confirm(`Geburtstag von „${b.name}“ wirklich löschen?`)){birthdays=birthdays.filter(x=>x.id!==id);save();close('bdayModal');render();toast('Geburtstag gelöscht')}};
+$('areaBirthdays').addEventListener('click',e=>{if(e.target.closest('[data-addbday]'))openBday();let b=e.target.closest('[data-editbday]');if(b)openBday(b.dataset.editbday)});
+
+/* ---------- Bereich Medikamente ---------- */
+let logFilter='all',logAll=false;
+function notifSupport(){return 'Notification' in window}
+function notifHTML(){
+ if(!notifSupport())return `<div class="box">🔕 Dieser Browser kann keine Benachrichtigungen anzeigen. Du siehst Erinnerungen weiterhin hier in der App (Hinweisleiste und Kalender), solange die Seite offen ist.</div>`;
+ let p=Notification.permission;
+ if(p==='denied')return `<div class="box">🔕 Benachrichtigungen sind in Deinem Browser blockiert. Du kannst das in den Browser-Einstellungen für diese Seite ändern. Bis dahin siehst Du Erinnerungen nur hier in der App.</div>`;
+ if(p==='granted'&&settings.notify)return `<div class="box">🔔 Benachrichtigungen sind eingeschaltet. <strong>Wichtig:</strong> Sie erscheinen nur, solange diese Seite geöffnet ist, und nur wenn Dein Gerät es erlaubt. Auf vielen Handys klappt das nicht. Das ist keine garantierte Zustellung.<div class="seg"><button class="btn" type="button" data-notiftest>Test-Benachrichtigung</button><button class="btn" type="button" data-notifoff>Ausschalten</button></div></div>`;
+ return `<div class="box">🔔 Du kannst Benachrichtigungen auf diesem Gerät erlauben. <strong>Ehrlich gesagt:</strong> Sie funktionieren nur, solange diese Seite geöffnet ist, und nicht auf jedem Gerät (besonders Handys sind oft eingeschränkt). Es ist keine echte Push-Funktion.<div class="seg"><button class="btn primary" type="button" data-notifon>Benachrichtigungen erlauben</button></div></div>`;
+}
+function renderMeds(){
+ let doses=dosesFor(today),byPerson={};
+ meds.forEach(m=>{(byPerson[m.person]=byPerson[m.person]||[]).push(m)});
+ const medCard=m=>{let p=member(m.person);return `<div class="row"><span class="big">${esc(p.emoji)}</span><div class="grow"><strong>${esc(m.name)}</strong> <span class="sub">für ${esc(p.name)}</span><div class="event-meta">${esc(medFormText(m))}${m.amount?` · ${esc(m.amount)} ${esc(m.unit)}`:''} · ${m.times.map(esc).join(', ')} Uhr</div><div class="event-meta">${esc(medRepeatText(m))} · ab ${fmt(pd(m.start),{day:'numeric',month:'short',year:'numeric'})}${m.end?` bis ${fmt(pd(m.end),{day:'numeric',month:'short',year:'numeric'})}`:''}${m.intervalNote?` · Notiz: ${esc(m.intervalNote)}`:''}</div>${m.notes?`<div class="event-meta">${esc(m.notes)}</div>`:''}</div><button class="btn" data-editmed="${esc(m.id)}" style="padding:6px 9px;font-size:12px">Bearbeiten</button></div>`};
+ let log=medLog.slice().sort((a,b)=>b.at.localeCompare(a.at)).filter(l=>logFilter==='all'||l.personId===logFilter),shown=logAll?log:log.slice(0,30);
+ $('areaMeds').innerHTML=`<div class="area-title"><h2>💊 Medikamente</h2><button class="btn primary" type="button" data-addmed>＋ Medikament / Anwendung</button></div>
+ <div class="box warn"><strong>Wichtig:</strong> Die App ist kein Arzt und gibt keine medizinischen Empfehlungen. Sie schlägt keine Dosierung und keine Einnahmezeiten vor und berechnet nichts. Alle Angaben trägst Du selbst ein. Die App erinnert nur an Deine eigenen Eingaben und hilft Dir beim Aufschreiben. Verlass Dich bei wichtigen Medikamenten nicht allein auf diese App.</div>
+ <div class="box"><strong>Datenschutz:</strong> Alles wird nur in diesem Browser auf diesem Gerät gespeichert, <strong>nicht verschlüsselt</strong>. Wer dieses Gerät und diesen Browser benutzt, kann die Daten sehen. Es werden keine Daten ins Internet gesendet. Eine Sicherungsdatei enthält die Daten ebenfalls unverschlüsselt.</div>
+ ${notifHTML()}
+ <h3 class="sec" style="margin-top:0">Heute (${fmt(today,{day:'numeric',month:'long'})})</h3>
+ ${doses.length?doses.map(x=>{let p=member(x.med.person),late=x.status==='open'&&x.time<=nowHM();return `<div class="row"><div class="grow"><strong>${esc(x.time)}</strong> · ${esc(p.emoji)} ${esc(p.name)} · ${esc(x.med.name)}${x.med.amount?` · ${esc(x.med.amount)} ${esc(x.med.unit)}`:''}${late?'<div class="event-meta">Uhrzeit ist vorbei, noch nicht eingetragen</div>':''}<div class="seg">${['taken','skipped','open'].map(s=>`<button type="button" class="btn ${x.status===s?'active':''}" aria-pressed="${x.status===s}" data-mark="${esc(x.key)}" data-status="${s}">${STATUS[s]}</button>`).join('')}</div></div><span class="pill ${x.status}">${STATUS[x.status]}</span></div>`}).join(''):'<div class="sub">Für heute sind keine Erinnerungen eingetragen.</div>'}
+ <h3 class="sec">Meine Einträge (${meds.length})</h3>
+ ${meds.length?Object.keys(byPerson).map(pid=>`<div class="sub" style="margin:8px 0 6px"><strong>${esc(member(pid).emoji)} ${esc(member(pid).name)}</strong></div>`+byPerson[pid].map(medCard).join('')).join(''):`<div class="empty"><div style="font-size:34px">💊</div><strong>Noch keine Einträge</strong>Tippe auf „＋ Medikament / Anwendung“. Alle Angaben trägst Du selbst ein.</div>`}
+ <h3 class="sec">Einnahmeprotokoll</h3>
+ <div class="field" style="max-width:320px;margin-bottom:10px"><label for="logFilter">Anzeigen für</label><select id="logFilter"><option value="all">Alle</option>${members.map(m=>`<option value="${esc(m.id)}" ${logFilter===m.id?'selected':''}>${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}</select></div>
+ ${shown.length?shown.map(l=>`<div class="row"><div class="grow"><strong>${fmt(pd(l.date),{day:'numeric',month:'short'})} ${esc(l.time)}</strong> · ${esc(l.personName||'?')} · ${esc(l.medName||'?')}<div class="event-meta">Eingetragen am ${fmt(new Date(l.at),{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div></div><span class="pill ${l.status}">${l.status==='open'?'Zurück auf „Noch offen“':STATUS[l.status]}</span></div>`).join('')+(!logAll&&log.length>30?`<button class="btn" type="button" data-logall>Alle ${log.length} Einträge anzeigen</button>`:''):'<div class="sub">Noch keine Einträge im Protokoll.</div>'}`;
+}
+$('areaMeds').addEventListener('click',e=>{
+ if(e.target.closest('[data-addmed]'))return openMed();
+ let ed=e.target.closest('[data-editmed]');if(ed)return openMed(ed.dataset.editmed);
+ let mk=e.target.closest('[data-mark]');if(mk)return markDose(mk.dataset.mark,mk.dataset.status);
+ if(e.target.closest('[data-logall]')){logAll=true;return renderMeds()}
+ if(e.target.closest('[data-notifon]'))return enableNotifications();
+ if(e.target.closest('[data-notifoff]')){settings.notify=false;save();return renderMeds()}
+ if(e.target.closest('[data-notiftest]'))return sendNotification('💊 Test','Wenn Du das siehst, funktionieren Benachrichtigungen auf diesem Gerät gerade.','test',true);
+});
+$('areaMeds').addEventListener('change',e=>{if(e.target.id==='logFilter'){logFilter=e.target.value;logAll=false;renderMeds()}});
+$('calendarContent').addEventListener('click',e=>{
+ let mk=e.target.closest('[data-mark]');if(mk){markDose(mk.dataset.mark,mk.dataset.status);return}
+ let b=e.target.closest('[data-month]');if(b){selected=new Date(selected.getFullYear(),+b.dataset.month,1);view='month';render()}
+});
+
+/* Medikament-Formular */
+function addTimeRow(v=''){
+ let r=document.createElement('div');r.className='time-row';
+ r.innerHTML=`<input type="time" class="medTimeInput" aria-label="Uhrzeit" value="${esc(v)}"><button type="button" class="icon-btn" aria-label="Uhrzeit entfernen">×</button>`;
+ r.querySelector('button').onclick=()=>{if($('medTimes').children.length>1)r.remove();else toast('Mindestens eine Uhrzeit wird gebraucht.')};
+ $('medTimes').appendChild(r);
+}
+function syncMedForm(){
+ $('medFormOtherWrap').hidden=$('medForm_').value!=='Sonstiges';
+ $('medEveryWrap').hidden=$('medRepeat').value!=='every';
+ $('medWeekdaysWrap').hidden=$('medRepeat').value!=='weekdays';
+ $('medMonthlyWrap').hidden=$('medRepeat').value!=='monthly';
+}
+$('medForm_').onchange=syncMedForm;$('medRepeat').onchange=syncMedForm;$('medAddTime').onclick=()=>addTimeRow();
+function openMed(id=null){
+ let m=meds.find(x=>x.id===id);$('medForm').reset();$('medId').value=m?m.id:'';
+ $('medModalTitle').textContent=m?'Medikament bearbeiten':'Medikament eintragen';
+ $('medPerson').innerHTML=members.map(p=>`<option value="${esc(p.id)}">${esc(p.emoji)} ${esc(p.name)}</option>`).join('');
+ $('medWeekdays').innerHTML=WD.map(w=>`<label><input type="checkbox" value="${w[1]}"> ${w[0]}</label>`).join('');
+ $('medTimes').innerHTML='';
+ if(m){$('medPerson').value=m.person;$('medName').value=m.name;$('medForm_').value=m.form;$('medFormOther').value=m.formOther;$('medAmount').value=m.amount;$('medUnit').value=m.unit;
+  m.times.forEach(t=>addTimeRow(t));$('medIntervalNote').value=m.intervalNote;$('medRepeat').value=m.repeat;$('medEvery').value=m.every;
+  $('medWeekdays').querySelectorAll('input').forEach(i=>i.checked=m.weekdays.includes(+i.value));$('medStart').value=m.start;$('medEnd').value=m.end;$('medNotes').value=m.notes}
+ else{addTimeRow();$('medStart').value=iso(today)}
+ syncMedForm();$('medDelete').hidden=!m;$('medModal').classList.add('show');
+}
+$('medForm').addEventListener('submit',ev=>{
+ ev.preventDefault();let id=$('medId').value;
+ let times=[...document.querySelectorAll('.medTimeInput')].map(i=>i.value).filter(Boolean);
+ if(!times.length){toast('Bitte mindestens eine Uhrzeit eintragen.');return}
+ let rep=$('medRepeat').value,wds=[...$('medWeekdays').querySelectorAll('input:checked')].map(i=>+i.value);
+ if(rep==='weekdays'&&!wds.length){toast('Bitte mindestens einen Wochentag auswählen.');return}
+ let every=parseInt($('medEvery').value,10);if(rep==='every'&&!(every>=2&&every<=60)){toast('Bitte eine Zahl zwischen 2 und 60 eintragen.');return}
+ let start=$('medStart').value,end=$('medEnd').value;
+ if(end&&end<start){toast('Das Ende darf nicht vor dem Beginn liegen.');return}
+ let data=cleanMed({id:id||'d'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),person:$('medPerson').value,name:$('medName').value.trim(),form:$('medForm_').value,formOther:$('medFormOther').value.trim(),amount:$('medAmount').value.trim(),unit:$('medUnit').value.trim(),times,intervalNote:$('medIntervalNote').value.trim(),repeat:rep,every:every||2,weekdays:wds,start,end,notes:$('medNotes').value.trim()});
+ if(!data){toast('Bitte die Angaben prüfen.');return}
+ if(id)meds=meds.map(m=>m.id===id?data:m);else meds.push(data);
+ save();close('medModal');render();toast('Gespeichert 💊');
+});
+$('medDelete').onclick=()=>{let id=$('medId').value,m=meds.find(x=>x.id===id);
+ if(m&&confirm(`„${m.name}“ löschen? Das bisherige Einnahmeprotokoll bleibt erhalten (Löschen: Einstellungen).`)){meds=meds.filter(x=>x.id!==id);save();close('medModal');render();toast('Eintrag gelöscht')}};
+
+/* ---------- Erinnerungen / Benachrichtigungen (nur bei geöffneter Seite) ---------- */
+let notified=new Set();try{notified=new Set(JSON.parse(store.get(P+'notified')||'[]'))}catch(e){}
+let toasted=new Set();
+function sendNotification(title,body,tag,showErr){
+ if(!notifSupport()||Notification.permission!=='granted'){if(showErr)toast('Benachrichtigungen sind nicht erlaubt.');return false}
+ try{new Notification(title,{body,tag});return true}
+ catch(e){if(showErr)toast('Dieses Gerät erlaubt hier keine Benachrichtigungen. Erinnerungen siehst Du in der App.');return false}
+}
+function enableNotifications(){
+ if(!notifSupport())return toast('Dieser Browser unterstützt keine Benachrichtigungen.');
+ try{
+  let r=Notification.requestPermission(p=>{});
+  Promise.resolve(r).then(p=>{if(p==='granted'){settings.notify=true;save();toast('Benachrichtigungen erlaubt')}else toast('Nicht erlaubt. Erinnerungen siehst Du weiterhin in der App.');renderMedsIfOpen()});
+ }catch(e){toast('Das hat nicht geklappt. Erinnerungen siehst Du in der App.')}
+}
+function renderMedsIfOpen(){if(area==='meds')renderMeds()}
+function updateDueBar(){
+ let n=dueDoses().length,bar=$('dueBar');
+ bar.hidden=!(n>0)||area==='meds';
+ if(n>0)$('dueText').textContent=`💊 ${n} Medikamenten-Erinnerung${n>1?'en sind':' ist'} noch offen`;
+}
+function checkReminders(){
+ let n=new Date();n.setHours(0,0,0,0);
+ if(iso(n)!==iso(today)){today=n;selected=new Date(today);render()}
+ let nowMin=new Date().getHours()*60+new Date().getMinutes(),changed=false;
+ dosesFor(today).filter(d=>d.status==='open').forEach(d=>{
+  let [h,m]=d.time.split(':').map(Number),diff=nowMin-(h*60+m);
+  if(diff>=0&&diff<=15){
+   if(!toasted.has(d.key)){toasted.add(d.key);toast('💊 Eine Erinnerung ist fällig ('+d.time+')')}
+   if(settings.notify&&!notified.has(d.key)){notified.add(d.key);changed=true;
+    let names=settings.medCal==='names';
+    sendNotification('💊 Erinnerung',names?`${member(d.med.person).name}: ${d.med.name} (${d.time})`:`Eine Erinnerung ist fällig (${d.time})`,d.key,false)}
+  }});
+ if(changed){let t=iso(today);notified=new Set([...notified].filter(k=>k.split('|')[1]===t));store.set(P+'notified',JSON.stringify([...notified]))}
+ updateDueBar();renderSide();
+}
+setInterval(checkReminders,30000);
+
+/* ---------- Termine / Personen ---------- */
+function openEvent(id=null){
+ let e=events.find(x=>x.id===id);$('eventForm').reset();$('eventId').value=e?.id||'';
+ $('eventModalTitle').textContent=e?'Termin bearbeiten':'Neuen Termin eintragen';
+ $('person').innerHTML=members.map(m=>`<option value="${esc(m.id)}">${esc(m.emoji)} ${esc(m.name)}</option>`).join('');
+ $('category').innerHTML=cats.map((c,i)=>`<option value="${i}">${c[0]} ${esc(c[1])}</option>`).join('');
+ $('date').value=e?.date||iso(selected);$('title').value=e?.title||'';
+ if(e){$('person').value=e.person;$('category').value=e.cat;$('start').value=e.start||'';$('end').value=e.end||'';$('repeat').value=e.repeat||'none';$('place').value=e.place||'';$('notes').value=e.notes||'';$('important').checked=!!e.important;$('private').checked=!!e.private}
+ $('eventModal').classList.add('show');
+}
+$('eventForm').addEventListener('submit',ev=>{
+ ev.preventDefault();let id=$('eventId').value;
+ let data=cleanEvent({id:id||'e'+Date.now(),title:$('title').value.trim(),person:$('person').value,cat:+$('category').value,date:$('date').value,start:$('start').value,end:$('end').value,repeat:$('repeat').value,place:$('place').value.trim(),notes:$('notes').value.trim(),important:$('important').checked,private:$('private').checked});
+ if(!data){toast('Bitte Titel und Datum prüfen.');return}
+ if(id)events=events.map(e=>e.id===id?data:e);else events.push(data);
+ save();selected=pd(data.date);view='day';area='calendar';close('eventModal');render();toast('Termin gespeichert 💛');
+});
+function close(id){$(id).classList.remove('show')}
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>close(b.dataset.close)));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-backdrop.show').forEach(m=>m.classList.remove('show'))});
+$('addBtn').onclick=()=>openEvent();
+$('memberBtn').onclick=()=>{if(members.length>=10){toast('Maximal 10 Familienmitglieder');return}$('memberForm').reset();
+ let pal=THEMES[theme].members;$('memberColor').value=pal[members.length%pal.length];   /* Vorschlag passend zur Farbwelt, Du kannst jede Farbe wählen */
+ $('memberModal').classList.add('show')};
+$('memberForm').addEventListener('submit',e=>{e.preventDefault();
+ let m=cleanMember({id:'m'+Date.now(),name:$('memberName').value.trim(),role:$('memberRole').value,emoji:$('memberEmoji').value,color:$('memberColor').value});
+ if(!m){toast('Bitte den Namen prüfen.');return}
+ members.push(m);save();close('memberModal');render();toast('Familienmitglied hinzugefügt')});
+$('settingsBtn').onclick=()=>$('settingsModal').classList.add('show');
+$('tabs').onclick=e=>{let b=e.target.closest('button[data-view]');if(b){view=b.dataset.view;render()}};
+$('prev').onclick=()=>move(-1);$('next').onclick=()=>move(1);
+function move(n){if(view==='day')selected=plusDays(selected,n);if(view==='week')selected=plusDays(selected,7*n);if(view==='month')selected=new Date(selected.getFullYear(),selected.getMonth()+n,1);if(view==='year')selected=new Date(selected.getFullYear()+n,selected.getMonth(),1);render()}
+$('today').onclick=()=>{selected=new Date(today);view='day';render()};
+const goCal=()=>{area='calendar';render()};
+$('calBtn').onclick=goCal;$('brandBtn').onclick=goCal;
+$('bdayBtn').onclick=()=>{area=area==='birthdays'?'calendar':'birthdays';render()};
+$('medBtn').onclick=()=>{area=area==='meds'?'calendar':'meds';render()};
+$('dueOpen').onclick=()=>{area='meds';render()};
+
+/* ---------- Aufgaben: lokal gespeicherte Organisations-Testfunktion ---------- */
+function taskRepeatDates(start,repeat){let out=[start],d=pd(start);if(repeat==='none')return out;for(let i=0;i<11;i++){if(repeat==='daily')d=plusDays(d,1);else if(repeat==='weekly')d=plusDays(d,7);else if(repeat==='biweekly')d=plusDays(d,14);else if(repeat==='monthly'){let day=d.getDate(),n=new Date(d.getFullYear(),d.getMonth()+1,1);n.setDate(Math.min(day,dim(n.getFullYear(),n.getMonth())));d=n}else if(repeat==='yearly'){let day=d.getDate(),n=new Date(d.getFullYear()+1,d.getMonth(),1);n.setDate(Math.min(day,dim(n.getFullYear(),n.getMonth())));d=n}out.push(iso(d))}return out}
+function renderTasks(){let host=$('areaTasks');let list=[...tasks].sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));host.innerHTML=`<div class="task-toolbar"><div><h2 style="margin:0;font-family:var(--head-font);font-weight:500;font-size:27px">Unsere Aufgaben</h2><div class="sub">Gemeinsam planen – ganz ohne Druck.</div></div><button class="btn primary" id="newTaskBtn">＋ Aufgabe</button></div>`+(list.length?`<div class="task-list">${list.map(t=>{let claimant=t.claimedBy?member(t.claimedBy).name:'';let ass=t.assignees.map(id=>member(id).name).join(', ');return `<article class="task-card"><div class="task-top"><div><div class="task-title">${esc(t.title)}</div><div class="task-meta">${fmt(pd(t.date),{weekday:'long',day:'numeric',month:'long',year:'numeric'})}${t.time?' · '+esc(t.time)+' Uhr':''}${t.forWhom?' · Für: '+esc(t.forWhom):''}</div><div class="task-meta">${t.status==='done'?'✅ Erledigt':t.status==='claimed'?'🤝 Übernommen von '+esc(claimant):'🟡 Noch offen'}${ass?' · Vorgeschlagen: '+esc(ass):''}</div></div><span class="badge">${t.repeat==='none'?'Einmalig':'Wiederholung'}</span></div>${t.shoppingItems.length?`<div class="task-shopping"><div class="task-meta"><strong>🛒 Einkaufsliste</strong></div><ul class="task-sub">${t.shoppingItems.map((x,i)=>`<li><label><input type="checkbox" data-shopping="${t.id}" data-index="${i}" ${x.done?'checked':''}> <span style="${x.done?'text-decoration:line-through;opacity:.65':''}">${esc(x.text)}</span></label></li>`).join('')}</ul><div class="task-meta">${t.shoppingItems.filter(x=>x.done).length} von ${t.shoppingItems.length} Artikeln erledigt</div></div>`:''}${t.notes?`<div class="task-note-alert"><span class="task-note-label">⚠️ Wichtige Notiz</span><div>${esc(t.notes).replace(/\n/g,'<br>')}</div></div>`:''}<div class="task-actions">${t.status==='open'?`<button class="btn soft" data-claim="${t.id}">Ich übernehme</button>`:''}${t.status==='claimed'?`<button class="btn" data-release="${t.id}">Wieder freigeben</button><button class="btn" data-reassign="${t.id}">Ersatzperson wählen</button>`:''}${t.status!=='done'?`<button class="btn" data-done="${t.id}">Erledigt</button>`:`<button class="btn" data-reopen="${t.id}">Wieder öffnen</button>`}<button class="btn" data-taskedit="${t.id}">Bearbeiten</button><button class="btn danger" data-taskdelete="${t.id}">Löschen</button></div></article>`}).join('')}</div>`:'<div class="task-empty"><strong>Noch keine Aufgaben eingetragen.</strong><p>Lege zum Beispiel eine Fahrt, einen Einkauf oder eine kleine Alltagshilfe an.</p></div>')+`<div class="footer-note">💛 Aufgaben werden hier in der Testversion nur auf diesem Gerät gespeichert. Die Auswahl und Übernahme sind eine Vorschau – noch keine echte Familienfreigabe oder Synchronisierung.</div>`;
+ $('newTaskBtn').onclick=()=>openTask();host.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>{let t=tasks.find(x=>x.id===b.dataset.claim);let who=prompt('Wer übernimmt diese Aufgabe?\n'+members.map((m,i)=>(i+1)+'. '+m.name).join('\n')+'\n\nBitte Nummer eingeben:');let m=members[Number(who)-1];if(!m){toast('Bitte eine gültige Person auswählen.');return}t.claimedBy=m.id;t.status='claimed';save();renderTasks()});
+ host.querySelectorAll('[data-release]').forEach(b=>b.onclick=()=>{let t=tasks.find(x=>x.id===b.dataset.release);t.claimedBy='';t.status='open';save();renderTasks();toast('Aufgabe ist wieder freigegeben')});
+ host.querySelectorAll('[data-reassign]').forEach(b=>b.onclick=()=>{let t=tasks.find(x=>x.id===b.dataset.reassign);let who=prompt('Wer könnte die Aufgabe stattdessen übernehmen?\n'+members.map((m,i)=>(i+1)+'. '+m.name).join('\n')+'\n\nBitte Nummer eingeben:');let m=members[Number(who)-1];if(!m){toast('Bitte eine gültige Person auswählen.');return}if(!confirm(m.name+' als Ersatz vorschlagen? Die Übernahme muss noch bestätigt werden.'))return;t.claimedBy='';t.status='open';t.assignees=[...new Set([...t.assignees,m.id])];save();renderTasks();toast('Ersatzperson vorgeschlagen')});
+ host.querySelectorAll('[data-done]').forEach(b=>b.onclick=()=>{let t=tasks.find(x=>x.id===b.dataset.done);t.status='done';save();renderTasks()});host.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=()=>{let t=tasks.find(x=>x.id===b.dataset.reopen);t.status='open';t.claimedBy='';save();renderTasks()});
+ host.querySelectorAll('[data-taskedit]').forEach(b=>b.onclick=()=>openTask(b.dataset.taskedit));host.querySelectorAll('[data-taskdelete]').forEach(b=>b.onclick=()=>{if(confirm('Diese Aufgabe löschen?')){tasks=tasks.filter(x=>x.id!==b.dataset.taskdelete);save();renderTasks()}});
+ host.querySelectorAll('[data-shopping]').forEach(c=>c.onchange=()=>{let t=tasks.find(x=>x.id===c.dataset.shopping);if(t&&t.shoppingItems[+c.dataset.index]){t.shoppingItems[+c.dataset.index].done=c.checked;save();renderTasks()}})
+}
+function openTask(id=null){let t=tasks.find(x=>x.id===id);$('taskForm').reset();$('taskId').value=t?.id||'';$('taskModalTitle').textContent=t?'Aufgabe bearbeiten':'Neue Aufgabe';$('taskTitle').value=t?.title||'';$('taskFor').value=t?.forWhom||'';$('taskDate').value=t?.date||iso(selected);$('taskTime').value=t?.time||'';$('taskRepeat').value=t?.repeat||'none';$('taskShopping').value=(t?.shoppingItems||[]).map(x=>x.text).join('\n');$('taskNotes').value=t?.notes||'';$('taskAssignees').innerHTML=members.map(m=>`<label><input type="checkbox" value="${esc(m.id)}" ${t?.assignees.includes(m.id)?'checked':''}> ${esc(m.emoji)} ${esc(m.name)}</label>`).join('');$('taskModal').classList.add('show')}
+$('taskForm').addEventListener('submit',e=>{e.preventDefault();let id=$('taskId').value,base={title:$('taskTitle').value.trim(),forWhom:$('taskFor').value.trim(),date:$('taskDate').value,time:$('taskTime').value,repeat:$('taskRepeat').value,assignees:[...$('taskAssignees').querySelectorAll('input:checked')].map(x=>x.value),shoppingItems:$('taskShopping').value.split('\n').map(x=>x.trim()).filter(Boolean).slice(0,50).map(text=>({text,done:false})),notes:$('taskNotes').value.trim()};if(!base.title||!validDate(base.date)){toast('Bitte Aufgabe und Datum prüfen.');return}if(id){let old=tasks.find(x=>x.id===id);Object.assign(old,base);old.repeat='none';save();close('taskModal');renderTasks();toast('Aufgabe aktualisiert');return}let series='s'+Date.now();let dates=taskRepeatDates(base.date,base.repeat);dates.forEach((date,i)=>tasks.push(cleanTask({id:'t'+Date.now()+'_'+i,seriesId:series,...base,date,repeat:base.repeat,status:'open',claimedBy:''})));save();close('taskModal');area='tasks';render();toast(dates.length>1?`${dates.length} Aufgaben-Termine angelegt`:'Aufgabe gespeichert')});
+$('tasksBtn').onclick=()=>{area=area==='tasks'?'calendar':'tasks';render()};
+/* ---------- Einstellungen ---------- */
+$('theme').onchange=e=>{applyTheme(e.target.value);save();render();toast('Farbwelt geändert')};
+$('state').onchange=e=>{state=e.target.value;settings.state=state;save();toast('Bundesland gespeichert – Feiertage werden in der nächsten Ausbaustufe ergänzt')};
+$('medCal').onchange=e=>{settings.medCal=e.target.value;save();render();toast('Gespeichert')};
+$('exportBtn').onclick=()=>{
+ let withMeds=$('exportMeds').checked,out={format:'unser-familienplaner-sicherung',version:2,exportedAt:new Date().toISOString(),settings:{theme:settings.theme,state:settings.state,medCal:settings.medCal},members,events,birthdays,tasks,healthProfiles};
+ if(withMeds){out.medications=meds;out.medicationLog=medLog}
+ let blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'}),a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);a.download='familienplaner-datensicherung-'+iso(new Date())+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+ toast(withMeds?'Sicherung gespeichert (enthält Medikamentendaten, bitte sicher aufbewahren)':'Sicherung gespeichert');
+};
+$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{
+ let f=e.target.files[0];e.target.value='';if(!f)return;
+ if(f.size>5*1024*1024){toast('Die Datei ist zu groß.');return}
+ let data;try{data=JSON.parse(await f.text())}catch(err){toast('Das ist keine gültige Sicherungsdatei.');return}
+ if(!data||typeof data!=='object'||Array.isArray(data)||!['members','events','birthdays','medications','tasks'].some(k=>Array.isArray(data[k]))){toast('Das ist keine Sicherungsdatei vom Familienplaner.');return}
+ let nm=Array.isArray(data.members)?cleanList(data.members,cleanMember):null,ne=Array.isArray(data.events)?cleanList(data.events,cleanEvent):null,nb=Array.isArray(data.birthdays)?cleanList(data.birthdays,cleanBday):null,nd=Array.isArray(data.medications)?cleanList(data.medications,cleanMed):null,nl=Array.isArray(data.medicationLog)?cleanList(data.medicationLog,cleanLog):null;
+ if(nm&&nm.length>10)nm=nm.slice(0,10);
+ let parts=[nm&&`${nm.length} Personen`,ne&&`${ne.length} Termine`,nb&&`${nb.length} Geburtstage`,nd&&`${nd.length} Medikamente`].filter(Boolean).join(', ');
+ if(!confirm(`Diese Sicherung einspielen?\n\nEnthalten: ${parts}.\nDie jeweils vorhandenen Daten dieser Bereiche werden ersetzt. Bereiche, die in der Datei fehlen, bleiben unverändert.`))return;
+ if(nm&&nm.length)members=nm;if(data.healthProfiles&&typeof data.healthProfiles==='object')healthProfiles=data.healthProfiles;if(ne)events=ne;if(nb)birthdays=nb;if(Array.isArray(data.tasks))tasks=cleanList(data.tasks,cleanTask);if(nd){meds=nd;if(nl)medLog=nl}
+ if(data.settings&&typeof data.settings==='object'){if(THEMES[data.settings.theme])applyTheme(data.settings.theme);if(/^[A-Z]{2}$/.test(data.settings.state||'')){settings.state=data.settings.state;$('state').value=settings.state}if(['names','nonames','off'].includes(data.settings.medCal)){settings.medCal=data.settings.medCal;$('medCal').value=settings.medCal}}
+ save();render();toast('Sicherung eingespielt ✅');
+};
+$('resetBtn').onclick=()=>{if(confirm('Beispieldaten wiederherstellen? Deine aktuellen lokalen Termine, Geburtstage und Medikamentendaten in dieser Testversion werden ersetzt.')){
+ ['members','events','birthdays','meds','medlog','tasks','healthProfiles','settings','theme','state','notified'].forEach(k=>store.del(P+k));store.set(P+'nomigrate','1');location.reload()}};
+$('wipeMedBtn').onclick=()=>{if(confirm('Alle Medikamente UND das gesamte Einnahmeprotokoll auf diesem Gerät löschen? Das kann nicht rückgängig gemacht werden.')){meds=[];medLog=[];notified=new Set();store.del(P+'notified');save();render();toast('Medikamentendaten gelöscht')}};
+
+/* ---------- Start ---------- */
+applyTheme(settings.theme);$('state').value=settings.state;$('medCal').value=settings.medCal;
+render();checkReminders();
+</script>
+</body>
+</html>
